@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useFinance, CategoryData, ReportData } from "@/context/FinanceContext";
 import { FinanceCard, FinanceCardHeader, FinanceCardBody } from "@/components/ui/finance-card";
@@ -467,6 +468,7 @@ const ReportsPage = () => {
             </FinanceCardBody>
           </FinanceCard>
         </TabsContent>
+      </Tabs>
     </div>
   );
 };
