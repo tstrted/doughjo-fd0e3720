@@ -20,9 +20,9 @@ export function CurrencyDisplay({
   // Determine the class based on the amount and colorCode prop
   const displayClass = colorCode
     ? amount > 0
-      ? "positive-amount"
+      ? "text-finance-income"
       : amount < 0
-      ? "negative-amount"
+      ? "text-finance-expense"
       : ""
     : "";
 

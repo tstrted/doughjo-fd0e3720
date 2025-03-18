@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useFinance } from "@/context/FinanceContext";
 import { FinanceCard, FinanceCardHeader, FinanceCardBody } from "@/components/ui/finance-card";
 import { DataTable } from "@/components/ui/data-table";
@@ -24,14 +23,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 
 const TransactionsPage = () => {
-  const { accounts, categories, transactions, addTransaction, formatCurrency } = useFinance();
+  const { 
+    accounts, 
+    categories, 
+    transactions, 
+    addTransaction, 
+    updateTransaction, 
+    deleteTransaction, 
+    formatCurrency 
+  } = useFinance();
+  const { toast } = useToast();
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [isEditTransactionOpen, setIsEditTransactionOpen] = useState(false);
+  const [currentTransaction, setCurrentTransaction] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 10;
   
-  // New transaction form state
+  // Transaction form state
   const [newTransaction, setNewTransaction] = useState({
     account: "",
     date: format(new Date(), "yyyy-MM-dd"),
@@ -49,6 +60,50 @@ const TransactionsPage = () => {
     startDate: "",
     endDate: "",
   });
+  
+  // Calculate transaction balances
+  useEffect(() => {
+    // Sort transactions by date (oldest first)
+    const sortedTransactions = [...transactions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    
+    // Group transactions by account
+    const accountTransactions: Record<string, typeof transactions> = {};
+    
+    sortedTransactions.forEach(transaction => {
+      if (!accountTransactions[transaction.account]) {
+        accountTransactions[transaction.account] = [];
+      }
+      accountTransactions[transaction.account].push(transaction);
+    });
+    
+    // Update running balances by account
+    Object.keys(accountTransactions).forEach(accountId => {
+      let runningBalance = 0;
+      let runningClearedBalance = 0;
+      
+      accountTransactions[accountId].forEach(transaction => {
+        // Calculate running balance
+        if (transaction.deposit) {
+          runningBalance += transaction.deposit;
+          runningClearedBalance += transaction.deposit; // Assume all are cleared for now
+        }
+        if (transaction.payment) {
+          runningBalance -= transaction.payment;
+          runningClearedBalance -= transaction.payment; // Assume all are cleared for now
+        }
+        
+        // Update transaction with calculated balance if it doesn't match
+        if (transaction.balance !== runningBalance || transaction.clearedBalance !== runningClearedBalance) {
+          updateTransaction(transaction.id, {
+            balance: runningBalance,
+            clearedBalance: runningClearedBalance
+          });
+        }
+      });
+    });
+  }, [transactions, updateTransaction]);
   
   // Get filtered transactions
   const filteredTransactions = transactions
@@ -109,6 +164,33 @@ const TransactionsPage = () => {
   
   // Handle transaction form submission
   const handleAddTransaction = () => {
+    if (!newTransaction.account) {
+      toast({
+        title: "Error",
+        description: "Please select an account",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!newTransaction.category) {
+      toast({
+        title: "Error",
+        description: "Please select a category",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!newTransaction.payment && !newTransaction.deposit) {
+      toast({
+        title: "Error",
+        description: "Please enter either a payment or deposit amount",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     addTransaction({
       account: newTransaction.account,
       date: newTransaction.date,
@@ -131,6 +213,70 @@ const TransactionsPage = () => {
     });
     
     setIsAddTransactionOpen(false);
+    
+    toast({
+      title: "Success",
+      description: "Transaction added successfully",
+    });
+  };
+  
+  // Handle transaction update
+  const handleUpdateTransaction = () => {
+    if (currentTransaction) {
+      if (!newTransaction.account || !newTransaction.category) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      updateTransaction(currentTransaction, {
+        account: newTransaction.account,
+        date: newTransaction.date,
+        description: newTransaction.description,
+        category: newTransaction.category,
+        payment: newTransaction.payment,
+        deposit: newTransaction.deposit,
+        memo: newTransaction.memo,
+      });
+      
+      setIsEditTransactionOpen(false);
+      setCurrentTransaction(null);
+      
+      toast({
+        title: "Success",
+        description: "Transaction updated successfully",
+      });
+    }
+  };
+  
+  // Open edit transaction dialog
+  const openEditTransaction = (transactionId: string) => {
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (transaction) {
+      setNewTransaction({
+        account: transaction.account,
+        date: transaction.date,
+        description: transaction.description,
+        category: transaction.category,
+        payment: transaction.payment,
+        deposit: transaction.deposit,
+        memo: transaction.memo || "",
+      });
+      setCurrentTransaction(transactionId);
+      setIsEditTransactionOpen(true);
+    }
+  };
+  
+  // Handle transaction deletion
+  const handleDeleteTransaction = (transactionId: string) => {
+    deleteTransaction(transactionId);
+    toast({
+      title: "Success",
+      description: "Transaction deleted successfully",
+    });
   };
   
   // Reset the filter
@@ -355,6 +501,121 @@ const TransactionsPage = () => {
             </DialogContent>
           </Dialog>
           
+          {/* Edit Transaction Dialog */}
+          <Dialog open={isEditTransactionOpen} onOpenChange={setIsEditTransactionOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Edit Transaction</DialogTitle>
+                <DialogDescription>
+                  Update the transaction details.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-account">Account</Label>
+                  <Select
+                    value={newTransaction.account}
+                    onValueChange={(value) => setNewTransaction({ ...newTransaction, account: value })}
+                  >
+                    <SelectTrigger id="edit-account">
+                      <SelectValue placeholder="Select account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-date">Date</Label>
+                  <Input
+                    id="edit-date"
+                    type="date"
+                    value={newTransaction.date}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-description">Description</Label>
+                  <Input
+                    id="edit-description"
+                    value={newTransaction.description}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-category">Category</Label>
+                  <Select
+                    value={newTransaction.category}
+                    onValueChange={(value) => setNewTransaction({ ...newTransaction, category: value })}
+                  >
+                    <SelectTrigger id="edit-category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-payment">Payment Amount</Label>
+                    <Input
+                      id="edit-payment"
+                      type="number"
+                      value={newTransaction.payment === undefined ? "" : newTransaction.payment}
+                      onChange={(e) => {
+                        const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                        setNewTransaction({ 
+                          ...newTransaction, 
+                          payment: value,
+                          deposit: value !== undefined ? undefined : newTransaction.deposit 
+                        });
+                      }}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-deposit">Deposit Amount</Label>
+                    <Input
+                      id="edit-deposit"
+                      type="number"
+                      value={newTransaction.deposit === undefined ? "" : newTransaction.deposit}
+                      onChange={(e) => {
+                        const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                        setNewTransaction({ 
+                          ...newTransaction, 
+                          deposit: value,
+                          payment: value !== undefined ? undefined : newTransaction.payment 
+                        });
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-memo">Memo (Optional)</Label>
+                  <Input
+                    id="edit-memo"
+                    value={newTransaction.memo}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, memo: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditTransactionOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateTransaction}>Update Transaction</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
           <Tabs defaultValue="add">
             <TabsList>
               <TabsTrigger value="add" className="px-3">
@@ -563,10 +824,18 @@ const TransactionsPage = () => {
                 accessorKey: "actions",
                 cell: (item) => (
                   <div className="flex space-x-2 justify-end">
-                    <Button variant="ghost" size="icon">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => openEditTransaction(item.id)}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => handleDeleteTransaction(item.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

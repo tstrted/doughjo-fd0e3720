@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useFinance } from "@/context/FinanceContext";
 import { FinanceCard, FinanceCardHeader, FinanceCardBody } from "@/components/ui/finance-card";
 import { CurrencyDisplay } from "@/components/ui/currency-display";
@@ -11,10 +11,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 const AccountsPage = () => {
-  const { accounts, addAccount, updateAccount, deleteAccount, formatCurrency } = useFinance();
+  const { accounts, transactions, addAccount, updateAccount, deleteAccount, formatCurrency } = useFinance();
+  const { toast } = useToast();
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [isEditAccountOpen, setIsEditAccountOpen] = useState(false);
+  const [currentAccount, setCurrentAccount] = useState<string | null>(null);
   const [newAccount, setNewAccount] = useState({
     name: "",
     type: "Checking",
@@ -22,12 +26,46 @@ const AccountsPage = () => {
     cleared: 0,
   });
 
+  // Calculate account balances from transactions
+  const accountsWithBalances = useMemo(() => {
+    return accounts.map(account => {
+      // Filter transactions for this account
+      const accountTransactions = transactions.filter(t => t.account === account.id);
+      
+      // Calculate balance
+      let balance = 0;
+      let cleared = 0;
+      
+      accountTransactions.forEach(transaction => {
+        // Add deposits, subtract payments
+        if (transaction.deposit) {
+          balance += transaction.deposit;
+          if (transaction.clearedBalance !== undefined) {
+            cleared += transaction.deposit;
+          }
+        }
+        if (transaction.payment) {
+          balance -= transaction.payment;
+          if (transaction.clearedBalance !== undefined) {
+            cleared -= transaction.payment;
+          }
+        }
+      });
+      
+      return {
+        ...account,
+        balance: balance,
+        cleared: cleared
+      };
+    });
+  }, [accounts, transactions]);
+
   // Calculate total assets, liabilities, and net worth
-  const totalAssets = accounts
+  const totalAssets = accountsWithBalances
     .filter(a => a.type !== "Credit")
     .reduce((sum, account) => sum + account.balance, 0);
     
-  const totalLiabilities = accounts
+  const totalLiabilities = accountsWithBalances
     .filter(a => a.type === "Credit")
     .reduce((sum, account) => sum + account.balance, 0);
     
@@ -54,8 +92,8 @@ const AccountsPage = () => {
     addAccount({
       name: newAccount.name,
       type: newAccount.type,
-      balance: newAccount.balance,
-      cleared: newAccount.cleared,
+      balance: 0, // Initial balance is 0, it will be calculated from transactions
+      cleared: 0,
     });
     
     setNewAccount({
@@ -66,6 +104,54 @@ const AccountsPage = () => {
     });
     
     setIsAddAccountOpen(false);
+    toast({
+      title: "Success",
+      description: "Account added successfully",
+    });
+  };
+
+  // Handle account editing
+  const handleEditAccount = () => {
+    if (currentAccount) {
+      const account = accounts.find(a => a.id === currentAccount);
+      if (account) {
+        updateAccount(currentAccount, {
+          name: newAccount.name,
+          type: newAccount.type,
+        });
+        
+        setIsEditAccountOpen(false);
+        setCurrentAccount(null);
+        toast({
+          title: "Success",
+          description: "Account updated successfully",
+        });
+      }
+    }
+  };
+
+  // Open edit account dialog
+  const openEditAccount = (accountId: string) => {
+    const account = accounts.find(a => a.id === accountId);
+    if (account) {
+      setNewAccount({
+        name: account.name,
+        type: account.type,
+        balance: account.balance,
+        cleared: account.cleared || 0,
+      });
+      setCurrentAccount(accountId);
+      setIsEditAccountOpen(true);
+    }
+  };
+
+  // Handle account deletion
+  const handleDeleteAccount = (accountId: string) => {
+    deleteAccount(accountId);
+    toast({
+      title: "Success",
+      description: "Account deleted successfully",
+    });
   };
 
   return (
@@ -113,30 +199,58 @@ const AccountsPage = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="balance">Current Balance</Label>
-                <Input
-                  id="balance"
-                  type="number"
-                  value={newAccount.balance}
-                  onChange={(e) => setNewAccount({ ...newAccount, balance: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="cleared">Cleared Balance</Label>
-                <Input
-                  id="cleared"
-                  type="number"
-                  value={newAccount.cleared}
-                  onChange={(e) => setNewAccount({ ...newAccount, cleared: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddAccountOpen(false)}>
                 Cancel
               </Button>
               <Button onClick={handleAddAccount}>Add Account</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Account Dialog */}
+        <Dialog open={isEditAccountOpen} onOpenChange={setIsEditAccountOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Account</DialogTitle>
+              <DialogDescription>
+                Update your account details.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Account Name</Label>
+                <Input
+                  id="edit-name"
+                  value={newAccount.name}
+                  onChange={(e) => setNewAccount({ ...newAccount, name: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-type">Account Type</Label>
+                <Select
+                  value={newAccount.type}
+                  onValueChange={(value) => setNewAccount({ ...newAccount, type: value })}
+                >
+                  <SelectTrigger id="edit-type">
+                    <SelectValue placeholder="Select account type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Checking">Checking</SelectItem>
+                    <SelectItem value="Savings">Savings</SelectItem>
+                    <SelectItem value="Investment">Investment</SelectItem>
+                    <SelectItem value="Credit">Credit Card</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditAccountOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditAccount}>Update Account</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -183,7 +297,7 @@ const AccountsPage = () => {
         } />
         <FinanceCardBody>
           <DataTable
-            data={accounts}
+            data={accountsWithBalances}
             columns={[
               {
                 header: "Account",
@@ -220,13 +334,17 @@ const AccountsPage = () => {
                 accessorKey: "actions",
                 cell: (item) => (
                   <div className="flex space-x-2 justify-end">
-                    <Button variant="ghost" size="icon">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => openEditAccount(item.id)}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      onClick={() => deleteAccount(item.id)}
+                      onClick={() => handleDeleteAccount(item.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
