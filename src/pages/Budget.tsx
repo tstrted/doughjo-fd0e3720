@@ -14,6 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { BudgetItem } from "@/types/finance";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const Budget = () => {
   const { 
@@ -30,6 +34,8 @@ const Budget = () => {
   const [activeMonth, setActiveMonth] = useState<number>(new Date().getMonth() + 1);
   const [activeYear, setActiveYear] = useState<number>(new Date().getFullYear());
   const [isAddBudgetItemOpen, setIsAddBudgetItemOpen] = useState(false);
+  const [isEditBudgetItemOpen, setIsEditBudgetItemOpen] = useState(false);
+  const [currentBudgetItem, setCurrentBudgetItem] = useState<BudgetItem | null>(null);
   
   // New budget item state
   const [newBudgetItem, setNewBudgetItem] = useState({
@@ -37,15 +43,19 @@ const Budget = () => {
     type: "expense" as "income" | "expense",
     amounts: {} as Record<string, number>
   });
+
+  // Apply same value to multiple months
+  const [bulkAmount, setBulkAmount] = useState<string>("");
+  const [selectedMonths, setSelectedMonths] = useState<Record<string, boolean>>({});
   
-  // Calculate budget summary for the active month
-  const { income, expenses, net } = calculateMonthlyBudget(activeMonth, activeYear);
-  
-  // Month names for display
+  // Months for display
   const months = [
     'jan', 'feb', 'mar', 'apr', 'may', 'jun', 
     'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
   ];
+  
+  // Calculate budget summary for the active month
+  const { income, expenses, net } = calculateMonthlyBudget(activeMonth, activeYear);
   
   // Filter budget items by type
   const incomeItems = budgetItems.filter(item => item.type === 'income');
@@ -76,12 +86,34 @@ const Budget = () => {
       amounts: {}
     });
     
+    setBulkAmount("");
+    setSelectedMonths({});
     setIsAddBudgetItemOpen(false);
     
     toast({
       title: "Success",
       description: "Budget item added successfully",
     });
+  };
+
+  // Handler for updating a budget item
+  const handleUpdateBudgetItem = () => {
+    if (!currentBudgetItem) return;
+    
+    updateBudgetItem(currentBudgetItem.id, currentBudgetItem);
+    setIsEditBudgetItemOpen(false);
+    setCurrentBudgetItem(null);
+    
+    toast({
+      title: "Success",
+      description: "Budget item updated successfully",
+    });
+  };
+
+  // Handler for initiating edit
+  const handleEditBudgetItem = (item: BudgetItem) => {
+    setCurrentBudgetItem({...item});
+    setIsEditBudgetItemOpen(true);
   };
 
   // Handler for deleting a budget item
@@ -93,7 +125,7 @@ const Budget = () => {
     });
   };
 
-  // Handler for setting a monthly amount
+  // Handler for setting a monthly amount for a new budget item
   const handleSetMonthlyAmount = (month: string, value: string) => {
     const amount = parseFloat(value) || 0;
     setNewBudgetItem({
@@ -103,6 +135,65 @@ const Budget = () => {
         [month.toLowerCase()]: amount
       }
     });
+  };
+
+  // Handler for setting a monthly amount for an existing budget item
+  const handleSetCurrentMonthlyAmount = (month: string, value: string) => {
+    if (!currentBudgetItem) return;
+    
+    const amount = parseFloat(value) || 0;
+    setCurrentBudgetItem({
+      ...currentBudgetItem,
+      amounts: {
+        ...currentBudgetItem.amounts,
+        [month.toLowerCase()]: amount
+      }
+    });
+  };
+
+  // Handler for applying bulk amount to selected months
+  const applyBulkAmount = () => {
+    const amount = parseFloat(bulkAmount) || 0;
+    const newAmounts = {...newBudgetItem.amounts};
+    
+    for (const month of months) {
+      if (selectedMonths[month]) {
+        newAmounts[month] = amount;
+      }
+    }
+    
+    setNewBudgetItem({
+      ...newBudgetItem,
+      amounts: newAmounts
+    });
+    
+    toast({
+      title: "Applied",
+      description: `Applied ${formatCurrency(amount)} to selected months`,
+    });
+  };
+
+  // Toggle month selection
+  const toggleMonth = (month: string) => {
+    setSelectedMonths({
+      ...selectedMonths,
+      [month]: !selectedMonths[month]
+    });
+  };
+
+  // Select all months
+  const selectAllMonths = () => {
+    const allSelected = months.reduce((acc, month) => {
+      acc[month] = true;
+      return acc;
+    }, {} as Record<string, boolean>);
+    
+    setSelectedMonths(allSelected);
+  };
+
+  // Clear all month selections
+  const clearMonthSelections = () => {
+    setSelectedMonths({});
   };
 
   return (
@@ -171,9 +262,44 @@ const Budget = () => {
                 </Select>
               </div>
               <div className="grid gap-4">
+                <div className="flex items-center justify-between">
+                  <Label>Bulk Amount Setting</Label>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={selectAllMonths}>Select All</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={clearMonthSelections}>Clear</Button>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={bulkAmount}
+                    onChange={(e) => setBulkAmount(e.target.value)}
+                  />
+                  <Button type="button" onClick={applyBulkAmount}>Apply</Button>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {months.map((month) => (
+                    <div key={month} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`select-${month}`}
+                        checked={selectedMonths[month] || false}
+                        onCheckedChange={() => toggleMonth(month)}
+                      />
+                      <Label
+                        htmlFor={`select-${month}`}
+                        className="text-sm cursor-pointer"
+                      >
+                        {month.charAt(0).toUpperCase() + month.slice(1)}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-4">
                 <Label>Monthly Amounts</Label>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  {months.map((month, index) => (
+                  {months.map((month) => (
                     <div key={month} className="flex items-center space-x-2">
                       <Label htmlFor={`month-${month}`} className="w-10 flex-shrink-0">
                         {month.charAt(0).toUpperCase() + month.slice(1)}
@@ -195,6 +321,52 @@ const Budget = () => {
                 Cancel
               </Button>
               <Button onClick={handleAddBudgetItem}>Add Budget Item</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Budget Item Dialog */}
+        <Dialog open={isEditBudgetItemOpen} onOpenChange={setIsEditBudgetItemOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Budget Item</DialogTitle>
+              <DialogDescription>
+                Update monthly amounts for this budget item.
+              </DialogDescription>
+            </DialogHeader>
+            {currentBudgetItem && (
+              <div className="grid gap-4 py-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium">
+                    {currentBudgetItem.type === 'income' ? 'Income' : 'Expense'}: {getCategoryName(currentBudgetItem.category)}
+                  </h3>
+                </div>
+                <div className="grid gap-4">
+                  <Label>Monthly Amounts</Label>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    {months.map((month) => (
+                      <div key={month} className="flex items-center space-x-2">
+                        <Label htmlFor={`edit-month-${month}`} className="w-10 flex-shrink-0">
+                          {month.charAt(0).toUpperCase() + month.slice(1)}
+                        </Label>
+                        <Input
+                          id={`edit-month-${month}`}
+                          type="number"
+                          placeholder="0.00"
+                          value={currentBudgetItem.amounts[month] || ""}
+                          onChange={(e) => handleSetCurrentMonthlyAmount(month, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditBudgetItemOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateBudgetItem}>Update Budget Item</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -338,13 +510,11 @@ const Budget = () => {
                     accessorKey: "actions",
                     cell: (item) => (
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="icon" onClick={() => {
-                          // Edit functionality to be implemented
-                          toast({
-                            title: "Edit",
-                            description: `Edit budget item ${getCategoryName(item.category)}`,
-                          });
-                        }}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEditBudgetItem(item)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
@@ -400,13 +570,11 @@ const Budget = () => {
                     accessorKey: "actions",
                     cell: (item) => (
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="icon" onClick={() => {
-                          // Edit functionality to be implemented
-                          toast({
-                            title: "Edit",
-                            description: `Edit budget item ${getCategoryName(item.category)}`,
-                          });
-                        }}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEditBudgetItem(item)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
