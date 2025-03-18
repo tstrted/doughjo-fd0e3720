@@ -17,21 +17,24 @@ export function CurrencyDisplay({
 }: CurrencyDisplayProps) {
   const { formatCurrency } = useFinance();
   
+  // Ensure amount is a number before proceeding
+  const numericAmount = typeof amount === 'number' ? amount : 0;
+  
   // Determine the class based on the amount and colorCode prop
   const displayClass = colorCode
-    ? amount > 0
+    ? numericAmount > 0
       ? "text-finance-income"
-      : amount < 0
+      : numericAmount < 0
       ? "text-finance-expense"
       : ""
     : "";
 
   // Format the number
-  const formattedValue = formatCurrency(Math.abs(amount));
+  const formattedValue = formatCurrency(Math.abs(numericAmount));
   
   // Add sign if needed
-  const displayValue = showSign && amount !== 0
-    ? amount > 0
+  const displayValue = showSign && numericAmount !== 0
+    ? numericAmount > 0
       ? `+${formattedValue}`
       : `-${formattedValue}`
     : formattedValue;

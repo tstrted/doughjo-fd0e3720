@@ -1,6 +1,5 @@
-
 import React, { useState } from "react";
-import { useFinance } from "@/context/FinanceContext";
+import { useFinance, YearlyReportData, CategoryBreakdown } from "@/context/FinanceContext";
 import { FinanceCard, FinanceCardHeader, FinanceCardBody } from "@/components/ui/finance-card";
 import { StatCard } from "@/components/ui/stat-card";
 import { CurrencyDisplay } from "@/components/ui/currency-display";
@@ -16,16 +15,20 @@ import {
   ArrowDownRight,
   BarChart3
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/ui/data-table";
+
+interface CategoryBreakdownWithName extends CategoryBreakdown {
+  category: string;
+}
 
 const YearlyReportsPage = () => {
   const { generateYearlyReportData, formatCurrency } = useFinance();
   const [activeYear, setActiveYear] = useState<number>(new Date().getFullYear());
   
   // Generate yearly report data
-  const yearlyData = generateYearlyReportData(activeYear);
+  const yearlyData: YearlyReportData = generateYearlyReportData(activeYear);
   
   // Year navigation
   const prevYear = () => setActiveYear(activeYear - 1);
@@ -220,7 +223,8 @@ const YearlyReportsPage = () => {
                 <DataTable
                   data={sortedIncomeCategories.map(([category, data]) => ({
                     category,
-                    ...data,
+                    total: data.total,
+                    average: data.average
                   }))}
                   columns={[
                     {
@@ -271,7 +275,8 @@ const YearlyReportsPage = () => {
                 <DataTable
                   data={sortedExpenseCategories.map(([category, data]) => ({
                     category,
-                    ...data,
+                    total: data.total,
+                    average: data.average
                   }))}
                   columns={[
                     {

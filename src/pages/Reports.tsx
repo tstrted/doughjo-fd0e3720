@@ -1,6 +1,5 @@
-
 import React, { useState } from "react";
-import { useFinance } from "@/context/FinanceContext";
+import { useFinance, CategoryData, ReportData } from "@/context/FinanceContext";
 import { FinanceCard, FinanceCardHeader, FinanceCardBody } from "@/components/ui/finance-card";
 import { StatCard } from "@/components/ui/stat-card";
 import { CurrencyDisplay } from "@/components/ui/currency-display";
@@ -24,6 +23,10 @@ import { DataTable } from "@/components/ui/data-table";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
+interface CategoryDataWithName extends CategoryData {
+  category: string;
+}
+
 const ReportsPage = () => {
   const { generateReportData, calculateMonthlyBudget, calculateActualSpending, formatCurrency } = useFinance();
   const [activeMonth, setActiveMonth] = useState<number>(new Date().getMonth() + 1);
@@ -31,7 +34,7 @@ const ReportsPage = () => {
   const [yearToDate, setYearToDate] = useState(false);
   
   // Generate report data based on current selection
-  const reportData = generateReportData(activeMonth, activeYear, yearToDate);
+  const reportData: ReportData = generateReportData(activeMonth, activeYear, yearToDate);
   
   // Month and year navigation
   const prevMonth = () => {
@@ -409,7 +412,9 @@ const ReportsPage = () => {
               <DataTable
                 data={sortedCategories.map(([category, data]) => ({
                   category,
-                  ...data,
+                  budget: data.budget,
+                  actual: data.actual,
+                  difference: data.difference
                 }))}
                 columns={[
                   {
@@ -462,7 +467,6 @@ const ReportsPage = () => {
             </FinanceCardBody>
           </FinanceCard>
         </TabsContent>
-      </Tabs>
     </div>
   );
 };

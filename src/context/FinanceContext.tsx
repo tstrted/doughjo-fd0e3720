@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 
 // Types
@@ -65,6 +64,46 @@ export interface SubAccountTransaction {
   totalBalance?: number;
 }
 
+// Report interfaces
+export interface BudgetSummary {
+  income: number;
+  expenses: number;
+  net: number;
+}
+
+export interface CategoryData {
+  budget: number;
+  actual: number;
+  difference: number;
+}
+
+export interface ReportData {
+  budgetSummary: BudgetSummary;
+  actualSummary: BudgetSummary;
+  difference: BudgetSummary;
+  categories: Record<string, CategoryData>;
+}
+
+export interface MonthlyData {
+  month: number;
+  monthName: string;
+  income: number;
+  expenses: number;
+  net: number;
+}
+
+export interface CategoryBreakdown {
+  total: number;
+  average: number;
+}
+
+export interface YearlyReportData {
+  monthlyData: MonthlyData[];
+  totals: BudgetSummary;
+  averages: BudgetSummary;
+  categoryBreakdown: Record<string, CategoryBreakdown>;
+}
+
 // Context interfaces
 interface FinanceContextType {
   // Data
@@ -109,11 +148,7 @@ interface FinanceContextType {
   updateSettings: (settings: Partial<typeof defaultSettings>) => void;
   
   // Utility functions
-  calculateMonthlyBudget: (month: number, year: number) => { 
-    income: number;
-    expenses: number;
-    net: number;
-  };
+  calculateMonthlyBudget: (month: number, year: number) => BudgetSummary;
   
   calculateActualSpending: (month: number, year: number) => {
     income: number;
@@ -126,9 +161,9 @@ interface FinanceContextType {
     month: number,
     year: number,
     yearToDate?: boolean
-  ) => any;
+  ) => ReportData;
   
-  generateYearlyReportData: (year: number) => any;
+  generateYearlyReportData: (year: number) => YearlyReportData;
   
   formatCurrency: (amount: number) => string;
 }
@@ -221,8 +256,18 @@ export const FinanceContext = createContext<FinanceContextType>({
     net: 0, 
     byCategory: {} 
   }),
-  generateReportData: () => ({}),
-  generateYearlyReportData: () => ({}),
+  generateReportData: () => ({
+    budgetSummary: { income: 0, expenses: 0, net: 0 },
+    actualSummary: { income: 0, expenses: 0, net: 0 },
+    difference: { income: 0, expenses: 0, net: 0 },
+    categories: {}
+  }),
+  generateYearlyReportData: () => ({
+    monthlyData: [],
+    totals: { income: 0, expenses: 0, net: 0 },
+    averages: { income: 0, expenses: 0, net: 0 },
+    categoryBreakdown: {}
+  }),
   formatCurrency: () => "$0.00",
 });
 
@@ -477,7 +522,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // Generate report data
-  const generateReportData = (month: number, year: number, yearToDate = false) => {
+  const generateReportData = (month: number, year: number, yearToDate = false): ReportData => {
     const result = {
       budgetSummary: {
         income: 0,
@@ -564,11 +609,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         result.categories[category].actual - result.categories[category].budget;
     });
 
-    return result;
+    return result as ReportData;
   };
 
   // Generate yearly report data
-  const generateYearlyReportData = (year: number) => {
+  const generateYearlyReportData = (year: number): YearlyReportData => {
     const monthlyData = [];
 
     // Get data for each month
@@ -634,7 +679,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       totals,
       averages,
       categoryBreakdown,
-    };
+    } as YearlyReportData;
   };
 
   // Context value
