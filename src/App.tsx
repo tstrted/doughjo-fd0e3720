@@ -13,7 +13,6 @@ import Budget from "./pages/Budget";
 import Accounts from "./pages/Accounts";
 import Transactions from "./pages/Transactions";
 import Reports from "./pages/Reports";
-import YearlyReports from "./pages/YearlyReports";
 import SubAccounts from "./pages/SubAccounts";
 import Settings from "./pages/Settings";
 import { FinanceProvider } from "./context/FinanceContext";
@@ -34,7 +33,6 @@ const App = () => (
               <Route path="accounts" element={<Accounts />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="reports" element={<Reports />} />
-              <Route path="yearly-reports" element={<YearlyReports />} />
               <Route path="sub-accounts" element={<SubAccounts />} />
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />

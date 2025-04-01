@@ -5,7 +5,6 @@ import {
   Wallet,
   BarChart3,
   ArrowRightLeft,
-  LineChart,
   PiggyBank,
   Settings,
   CreditCard,
@@ -37,11 +36,6 @@ const SideNav = ({ closeSidebar }: SideNavProps) => {
       name: "Reports",
       path: "/reports",
       icon: <BarChart3 className="h-5 w-5" />,
-    },
-    {
-      name: "Yearly Reports",
-      path: "/yearly-reports",
-      icon: <LineChart className="h-5 w-5" />,
     },
     {
       name: "Sub-Accounts",

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useFinance } from "@/context/FinanceContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -19,18 +19,21 @@ import {
   Download, 
   Upload, 
   Save, 
-  Trash2 
+  Trash2,
+  Edit,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Category } from "@/types/finance";
 
 const SettingsPage = () => {
-  const { settings, updateSettings, categories, addCategory, accounts } = useFinance();
+  const { settings, updateSettings, categories, addCategory, updateCategory, deleteCategory } = useFinance();
   
   // Local settings state
   const [localSettings, setLocalSettings] = useState({
     currency: settings.currency,
     financialYearStart: settings.financialYearStart,
-    darkMode: false,
+    darkMode: settings.darkMode || false,
     notifications: true,
     autoSync: true,
   });
@@ -41,6 +44,19 @@ const SettingsPage = () => {
     type: "F" as "F" | "S" | "G" | "V",
     description: "",
   });
+
+  // Edit category form state
+  const [editCategory, setEditCategory] = useState<Category | null>(null);
+  
+  // Update local settings when the context settings change
+  useEffect(() => {
+    setLocalSettings(prev => ({
+      ...prev,
+      currency: settings.currency,
+      financialYearStart: settings.financialYearStart,
+      darkMode: settings.darkMode || false
+    }));
+  }, [settings]);
   
   // Explain category types
   const categoryTypeDescriptions = {
@@ -55,6 +71,7 @@ const SettingsPage = () => {
     updateSettings({
       currency: localSettings.currency,
       financialYearStart: localSettings.financialYearStart,
+      darkMode: localSettings.darkMode,
     });
     
     toast.success("Settings saved successfully");
@@ -81,12 +98,37 @@ const SettingsPage = () => {
     
     toast.success("Category added successfully");
   };
+
+  // Handle edit category form submission
+  const handleEditCategory = () => {
+    if (!editCategory) return;
+    
+    if (!editCategory.name) {
+      toast.error("Category name is required");
+      return;
+    }
+    
+    updateCategory(editCategory.id, {
+      name: editCategory.name,
+      type: editCategory.type,
+      description: editCategory.description || undefined,
+    });
+    
+    setEditCategory(null);
+    toast.success("Category updated successfully");
+  };
+
+  // Handle delete category
+  const handleDeleteCategory = (id: string) => {
+    deleteCategory(id);
+    toast.success("Category deleted successfully");
+  };
   
   // Export data as JSON
   const handleExportData = () => {
     try {
       const data = JSON.stringify({
-        accounts,
+        accounts: [], // This should be filled from context once available
         categories,
         settings,
       }, null, 2);
@@ -149,11 +191,11 @@ const SettingsPage = () => {
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">US Dollar (USD)</SelectItem>
-                    <SelectItem value="EUR">Euro (EUR)</SelectItem>
-                    <SelectItem value="GBP">British Pound (GBP)</SelectItem>
-                    <SelectItem value="ZAR">South African Rand (ZAR)</SelectItem>
-                    <SelectItem value="AUD">Australian Dollar (AUD)</SelectItem>
+                    <SelectItem value="USD">US Dollar ($)</SelectItem>
+                    <SelectItem value="EUR">Euro (€)</SelectItem>
+                    <SelectItem value="GBP">British Pound (£)</SelectItem>
+                    <SelectItem value="ZAR">South African Rand (R)</SelectItem>
+                    <SelectItem value="AUD">Australian Dollar (A$)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -274,6 +316,130 @@ const SettingsPage = () => {
                     <Save className="mr-2 h-4 w-4" /> Add Category
                   </Button>
                 </div>
+              </div>
+
+              <div className="pt-6 border-t mt-6">
+                <h3 className="text-lg font-medium mb-4">Manage Categories</h3>
+                {categories.length === 0 ? (
+                  <p className="text-muted-foreground">No categories added yet.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {categories.map((category) => (
+                      <div key={category.id} className="flex items-center justify-between p-3 border rounded-md">
+                        <div>
+                          <h4 className="font-medium">{category.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Type {category.type}{category.description ? ` - ${category.description}` : ''}
+                          </p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="icon">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit Category</DialogTitle>
+                                <DialogDescription>
+                                  Make changes to the category details.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-category-name">Category Name</Label>
+                                  <Input
+                                    id="edit-category-name"
+                                    value={editCategory?.name || category.name}
+                                    onChange={(e) => setEditCategory({
+                                      ...(editCategory || category),
+                                      name: e.target.value
+                                    })}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-category-type">Category Type</Label>
+                                  <RadioGroup
+                                    value={editCategory?.type || category.type}
+                                    onValueChange={(value) => setEditCategory({
+                                      ...(editCategory || category),
+                                      type: value as any
+                                    })}
+                                    className="grid grid-cols-1 gap-2"
+                                  >
+                                    {Object.entries(categoryTypeDescriptions).map(([type, description]) => (
+                                      <div key={type} className="flex items-start space-x-2">
+                                        <RadioGroupItem value={type} id={`edit-type-${type}`} className="mt-1" />
+                                        <div>
+                                          <Label htmlFor={`edit-type-${type}`} className="font-medium">
+                                            Type {type}
+                                          </Label>
+                                          <p className="text-sm text-muted-foreground">{description}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </RadioGroup>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-category-description">Description (Optional)</Label>
+                                  <Input
+                                    id="edit-category-description"
+                                    value={editCategory?.description || category.description || ''}
+                                    onChange={(e) => setEditCategory({
+                                      ...(editCategory || category),
+                                      description: e.target.value
+                                    })}
+                                  />
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <DialogClose asChild>
+                                  <Button variant="outline">Cancel</Button>
+                                </DialogClose>
+                                <Button onClick={() => {
+                                  if (!editCategory) {
+                                    setEditCategory(category);
+                                    return;
+                                  }
+                                  handleEditCategory();
+                                }}>Save Changes</Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="icon">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Delete Category</DialogTitle>
+                                <DialogDescription>
+                                  Are you sure you want to delete this category? This action cannot be undone.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter className="mt-4">
+                                <DialogClose asChild>
+                                  <Button variant="outline">Cancel</Button>
+                                </DialogClose>
+                                <DialogClose asChild>
+                                  <Button variant="destructive" onClick={() => handleDeleteCategory(category.id)}>
+                                    Delete
+                                  </Button>
+                                </DialogClose>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

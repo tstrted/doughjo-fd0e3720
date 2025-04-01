@@ -8,10 +8,23 @@ interface Settings {
   financialYearStart: string;
   currentMonth: number;
   currentYear: number;
+  darkMode: boolean;
 }
 
+// Currency symbol mapping
+const currencySymbols: Record<Currency, string> = {
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  ZAR: "R",
+  AUD: "A$"
+};
+
 export const useSettings = () => {
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [settings, setSettings] = useState<Settings>({
+    ...defaultSettings,
+    darkMode: false
+  });
 
   // Load settings from localStorage on initial mount
   useEffect(() => {
@@ -34,18 +47,31 @@ export const useSettings = () => {
     }
   }, [settings]);
 
+  // Apply dark mode class to HTML element
+  useEffect(() => {
+    if (settings.darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [settings.darkMode]);
+
   // Update settings
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings({ ...settings, ...newSettings });
   };
 
-  // Format currency
+  // Format currency using symbols instead of codes
   const formatCurrency = (amount: number): string => {
+    const symbol = currencySymbols[settings.currency] || "$";
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: settings.currency,
+      currencyDisplay: 'narrowSymbol',
       minimumFractionDigits: 2,
-    }).format(amount);
+    }).format(amount)
+      // Replace the currency code with just the symbol
+      .replace(settings.currency, symbol);
   };
 
   return {
