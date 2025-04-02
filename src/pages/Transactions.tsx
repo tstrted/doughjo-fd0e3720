@@ -40,12 +40,13 @@ const TransactionsPage = () => {
     type: "payment" as "payment" | "deposit" | "transfer" | "balance" | string,
   });
 
-  // Filter state
+  // Enhanced filter state
   const [filter, setFilter] = useState({
     account: "",
     category: "",
     startDate: "",
     endDate: "",
+    searchTerm: "",
   });
   
   // Calculate transaction balances
@@ -99,18 +100,33 @@ const TransactionsPage = () => {
   // Get filtered transactions
   const filteredTransactions = transactions
     .filter(transaction => {
+      // Account filter
       if (filter.account && transaction.account !== filter.account) return false;
+      
+      // Category filter
       if (filter.category && transaction.category !== filter.category) return false;
+      
+      // Date range filter
       if (filter.startDate) {
         const transactionDate = new Date(transaction.date);
         const startDate = new Date(filter.startDate);
         if (transactionDate < startDate) return false;
       }
+      
       if (filter.endDate) {
         const transactionDate = new Date(transaction.date);
         const endDate = new Date(filter.endDate);
         if (transactionDate > endDate) return false;
       }
+      
+      // Search term filter (case insensitive search on description and memo)
+      if (filter.searchTerm) {
+        const searchTerm = filter.searchTerm.toLowerCase();
+        const descriptionMatch = transaction.description.toLowerCase().includes(searchTerm);
+        const memoMatch = transaction.memo ? transaction.memo.toLowerCase().includes(searchTerm) : false;
+        if (!descriptionMatch && !memoMatch) return false;
+      }
+      
       return true;
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -139,6 +155,65 @@ const TransactionsPage = () => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return format(date, "MM/dd/yy");
+  };
+  
+  // Handle filter changes
+  const handleFilterChange = (newFilter: typeof filter) => {
+    setFilter(newFilter);
+    setCurrentPage(0); // Reset to first page when filter changes
+  };
+  
+  // Reset all filters
+  const handleResetFilters = () => {
+    setFilter({
+      account: "",
+      category: "",
+      startDate: "",
+      endDate: "",
+      searchTerm: "",
+    });
+    setCurrentPage(0);
+  };
+  
+  // Export transactions to CSV
+  const handleExportTransactions = () => {
+    if (filteredTransactions.length === 0) {
+      toast({
+        title: "No transactions to export",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Create CSV header
+    const header = ["Date", "Description", "Category", "Account", "Payment", "Deposit", "Memo"];
+    
+    // Create CSV rows
+    const rows = filteredTransactions.map(transaction => [
+      transaction.date,
+      transaction.description,
+      categories.find(c => c.id === transaction.category)?.name || transaction.category,
+      accounts.find(a => a.id === transaction.account)?.name || transaction.account,
+      transaction.payment || "",
+      transaction.deposit || "",
+      transaction.memo || ""
+    ]);
+    
+    // Combine header and rows
+    const csvContent = [header, ...rows].map(row => row.join(",")).join("\n");
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `transactions-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
+    
+    toast({
+      title: "Success",
+      description: `${filteredTransactions.length} transactions exported`,
+    });
   };
   
   // Handle transaction form submission
@@ -287,7 +362,15 @@ const TransactionsPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <TransactionFilters onAddTransaction={() => setIsAddTransactionOpen(true)} />
+      <TransactionFilters 
+        onAddTransaction={() => setIsAddTransactionOpen(true)} 
+        onFilterChange={handleFilterChange}
+        filter={filter}
+        accounts={accounts}
+        categories={categories}
+        onResetFilters={handleResetFilters}
+        onExportTransactions={handleExportTransactions}
+      />
       
       <TransactionSummary totalIncome={totalIncome} totalExpenses={totalExpenses} />
 
