@@ -51,6 +51,16 @@ const SideNav = ({ closeSidebar }: SideNavProps) => {
 
   return (
     <nav className="flex-1 overflow-auto py-4">
+      <div className="mb-6 px-4">
+        <div className="flex items-center justify-center mb-4">
+          <img 
+            src="/lovable-uploads/03194697-3c05-4437-ae1d-f031fbeb29eb.png" 
+            alt="DoughJo Logo" 
+            className="w-full max-w-[200px]" 
+          />
+        </div>
+        <h2 className="text-xl font-bold text-center mb-6">My DoughJo</h2>
+      </div>
       <div className="px-3 py-2">
         <div className="space-y-1">
           {navItems.map((item) => (
