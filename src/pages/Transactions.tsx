@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useFinance } from "@/context/FinanceContext";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -8,6 +8,7 @@ import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { TransactionSummary } from "@/components/transactions/TransactionSummary";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
+import { useTransactionBalances } from "@/hooks/useTransactionBalances";
 
 const TransactionsPage = () => {
   const { 
@@ -19,6 +20,9 @@ const TransactionsPage = () => {
     deleteTransaction,
   } = useFinance();
   const { toast } = useToast();
+  
+  // Apply the new useTransactionBalances hook
+  useTransactionBalances(transactions, updateTransaction);
   
   // UI state
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
@@ -48,54 +52,6 @@ const TransactionsPage = () => {
     endDate: "",
     searchTerm: "",
   });
-  
-  // Calculate transaction balances
-  useEffect(() => {
-    // Sort transactions by date (oldest first)
-    const sortedTransactions = [...transactions].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-    
-    // Group transactions by account
-    const accountTransactions: Record<string, typeof transactions> = {};
-    
-    sortedTransactions.forEach(transaction => {
-      if (!accountTransactions[transaction.account]) {
-        accountTransactions[transaction.account] = [];
-      }
-      accountTransactions[transaction.account].push(transaction);
-    });
-    
-    // Update running balances by account
-    Object.keys(accountTransactions).forEach(accountId => {
-      let runningBalance = 0;
-      let runningClearedBalance = 0;
-      
-      accountTransactions[accountId].forEach(transaction => {
-        // Calculate running balance
-        if (transaction.deposit) {
-          runningBalance += transaction.deposit;
-          if (transaction.cleared) {
-            runningClearedBalance += transaction.deposit;
-          }
-        }
-        if (transaction.payment) {
-          runningBalance -= transaction.payment;
-          if (transaction.cleared) {
-            runningClearedBalance -= transaction.payment;
-          }
-        }
-        
-        // Update transaction with calculated balance if it doesn't match
-        if (transaction.balance !== runningBalance || transaction.clearedBalance !== runningClearedBalance) {
-          updateTransaction(transaction.id, {
-            balance: runningBalance,
-            clearedBalance: runningClearedBalance
-          });
-        }
-      });
-    });
-  }, [transactions, updateTransaction]);
   
   // Get filtered transactions
   const filteredTransactions = transactions
