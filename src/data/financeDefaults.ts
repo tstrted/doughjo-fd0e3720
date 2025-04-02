@@ -7,6 +7,7 @@ export const defaultSettings = {
   financialYearStart: "01/01/2025",
   currentMonth: new Date().getMonth() + 1,
   currentYear: new Date().getFullYear(),
+  darkMode: false, // Added darkMode property with default value
 };
 
 // Default accounts

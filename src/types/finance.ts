@@ -117,6 +117,7 @@ export interface FinanceContextType {
     financialYearStart: string;
     currentMonth: number;
     currentYear: number;
+    darkMode: boolean; // Added darkMode property
   };
   
   // Functions
@@ -149,6 +150,7 @@ export interface FinanceContextType {
     financialYearStart: string;
     currentMonth: number;
     currentYear: number;
+    darkMode: boolean; // Added darkMode property
   }>) => void;
   
   // Utility functions
