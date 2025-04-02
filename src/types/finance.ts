@@ -1,4 +1,3 @@
-
 // Types for finance data
 export type Currency = "USD" | "EUR" | "GBP" | "ZAR" | "AUD";
 
@@ -32,6 +31,8 @@ export interface Transaction {
   clearedBalance?: number;
   balance?: number;
   memo?: string;
+  cleared?: boolean;
+  type?: "payment" | "deposit" | "transfer" | "balance" | string;
 }
 
 export interface BudgetItem {
