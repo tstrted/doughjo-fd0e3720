@@ -62,7 +62,7 @@ const TransactionsPage = () => {
     deposit: undefined as number | undefined,
     memo: "",
     cleared: false,
-    type: "payment" as "payment" | "deposit" | "transfer" | "balance",
+    type: "payment" as "payment" | "deposit" | "transfer" | "balance" | string,
   });
 
   // Filter state
