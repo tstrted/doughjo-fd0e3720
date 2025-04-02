@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useFinance } from "@/context/FinanceContext";
-import { FinanceCard, FinanceCardHeader, FinanceCardBody } from "@/components/ui/finance-card";
 import { DataTable } from "@/components/ui/data-table";
 import { CurrencyDisplay } from "@/components/ui/currency-display";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,16 @@ import {
   Filter,
   ArrowUpRight,
   ArrowDownRight,
+  Check,
   CreditCard,
+  Banknote,
+  Building,
+  Receipt,
+  Home,
+  Car,
+  ShoppingCart,
+  DollarSign,
+  Fuel,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -24,6 +32,8 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { TransactionTypeIcon } from "@/components/transactions/TransactionTypeIcon";
 
 const TransactionsPage = () => {
   const { 
@@ -32,7 +42,7 @@ const TransactionsPage = () => {
     transactions, 
     addTransaction, 
     updateTransaction, 
-    deleteTransaction, 
+    deleteTransaction,
     formatCurrency 
   } = useFinance();
   const { toast } = useToast();
@@ -51,6 +61,8 @@ const TransactionsPage = () => {
     payment: undefined as number | undefined,
     deposit: undefined as number | undefined,
     memo: "",
+    cleared: false,
+    type: "payment" as "payment" | "deposit" | "transfer" | "balance",
   });
 
   // Filter state
@@ -87,11 +99,15 @@ const TransactionsPage = () => {
         // Calculate running balance
         if (transaction.deposit) {
           runningBalance += transaction.deposit;
-          runningClearedBalance += transaction.deposit; // Assume all are cleared for now
+          if (transaction.cleared) {
+            runningClearedBalance += transaction.deposit;
+          }
         }
         if (transaction.payment) {
           runningBalance -= transaction.payment;
-          runningClearedBalance -= transaction.payment; // Assume all are cleared for now
+          if (transaction.cleared) {
+            runningClearedBalance -= transaction.payment;
+          }
         }
         
         // Update transaction with calculated balance if it doesn't match
@@ -159,7 +175,7 @@ const TransactionsPage = () => {
   // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return format(date, "dd MMM yyyy");
+    return format(date, "MM/dd/yy");
   };
   
   // Handle transaction form submission
@@ -199,6 +215,8 @@ const TransactionsPage = () => {
       payment: newTransaction.payment,
       deposit: newTransaction.deposit,
       memo: newTransaction.memo,
+      cleared: newTransaction.cleared,
+      type: newTransaction.type,
     });
     
     // Reset form
@@ -210,6 +228,8 @@ const TransactionsPage = () => {
       payment: undefined,
       deposit: undefined,
       memo: "",
+      cleared: false,
+      type: "payment",
     });
     
     setIsAddTransactionOpen(false);
@@ -240,6 +260,8 @@ const TransactionsPage = () => {
         payment: newTransaction.payment,
         deposit: newTransaction.deposit,
         memo: newTransaction.memo,
+        cleared: newTransaction.cleared,
+        type: newTransaction.type,
       });
       
       setIsEditTransactionOpen(false);
@@ -264,6 +286,8 @@ const TransactionsPage = () => {
         payment: transaction.payment,
         deposit: transaction.deposit,
         memo: transaction.memo || "",
+        cleared: transaction.cleared || false,
+        type: transaction.type || "payment",
       });
       setCurrentTransaction(transactionId);
       setIsEditTransactionOpen(true);
@@ -279,6 +303,15 @@ const TransactionsPage = () => {
     });
   };
   
+  // Toggle transaction cleared status
+  const toggleTransactionCleared = (transactionId: string, isCleared: boolean) => {
+    updateTransaction(transactionId, { cleared: isCleared });
+    toast({
+      title: "Status Updated",
+      description: isCleared ? "Transaction marked as cleared" : "Transaction marked as uncleared",
+    });
+  };
+  
   // Reset the filter
   const resetFilter = () => {
     setFilter({
@@ -289,460 +322,59 @@ const TransactionsPage = () => {
     });
   };
 
+  // Determine transaction type for icon
+  const getTransactionType = (transaction: any) => {
+    if (transaction.type) {
+      return transaction.type;
+    }
+    if (transaction.deposit) return "deposit";
+    if (transaction.payment) return "payment";
+    return "payment";
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Transactions</h2>
         <div className="flex space-x-3">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Filter className="mr-2 h-4 w-4" /> Filter
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Filter Transactions</DialogTitle>
-                <DialogDescription>
-                  Apply filters to view specific transactions.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="filter-account">Account</Label>
-                  <Select
-                    value={filter.account}
-                    onValueChange={(value) => setFilter({ ...filter, account: value })}
-                  >
-                    <SelectTrigger id="filter-account">
-                      <SelectValue placeholder="All Accounts" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Accounts</SelectItem>
-                      {accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="filter-category">Category</Label>
-                  <Select
-                    value={filter.category}
-                    onValueChange={(value) => setFilter({ ...filter, category: value })}
-                  >
-                    <SelectTrigger id="filter-category">
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="filter-start-date">Start Date</Label>
-                    <Input
-                      id="filter-start-date"
-                      type="date"
-                      value={filter.startDate}
-                      onChange={(e) => setFilter({ ...filter, startDate: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="filter-end-date">End Date</Label>
-                    <Input
-                      id="filter-end-date"
-                      type="date"
-                      value={filter.endDate}
-                      onChange={(e) => setFilter({ ...filter, endDate: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={resetFilter}>
-                  Reset
-                </Button>
-                <Button type="submit" onClick={() => {}}>
-                  Apply Filters
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" size="icon" className="border-none">
+            <Filter className="mr-0 h-5 w-5" />
+          </Button>
           
-          <Dialog open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> Add Transaction
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Add New Transaction</DialogTitle>
-                <DialogDescription>
-                  Enter the details for your new transaction.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="account">Account</Label>
-                  <Select
-                    value={newTransaction.account}
-                    onValueChange={(value) => setNewTransaction({ ...newTransaction, account: value })}
-                  >
-                    <SelectTrigger id="account">
-                      <SelectValue placeholder="Select account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={newTransaction.date}
-                    onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    value={newTransaction.description}
-                    onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
-                    placeholder="e.g., Groceries at SuperMarket"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select
-                    value={newTransaction.category}
-                    onValueChange={(value) => setNewTransaction({ ...newTransaction, category: value })}
-                  >
-                    <SelectTrigger id="category">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="payment">Payment Amount</Label>
-                    <Input
-                      id="payment"
-                      type="number"
-                      value={newTransaction.payment === undefined ? "" : newTransaction.payment}
-                      onChange={(e) => {
-                        const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                        setNewTransaction({ 
-                          ...newTransaction, 
-                          payment: value,
-                          deposit: value !== undefined ? undefined : newTransaction.deposit 
-                        });
-                      }}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="deposit">Deposit Amount</Label>
-                    <Input
-                      id="deposit"
-                      type="number"
-                      value={newTransaction.deposit === undefined ? "" : newTransaction.deposit}
-                      onChange={(e) => {
-                        const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                        setNewTransaction({ 
-                          ...newTransaction, 
-                          deposit: value,
-                          payment: value !== undefined ? undefined : newTransaction.payment 
-                        });
-                      }}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="memo">Memo (Optional)</Label>
-                  <Input
-                    id="memo"
-                    value={newTransaction.memo}
-                    onChange={(e) => setNewTransaction({ ...newTransaction, memo: e.target.value })}
-                    placeholder="Additional notes"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddTransactionOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddTransaction}>Add Transaction</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button className="gap-2 bg-primary text-white">
+            <Plus className="h-5 w-5" /> Add Transaction
+          </Button>
+
+          <Button variant="outline" size="icon" className="border-none">
+            <Plus className="mr-0 h-5 w-5" />
+          </Button>
           
-          {/* Edit Transaction Dialog */}
-          <Dialog open={isEditTransactionOpen} onOpenChange={setIsEditTransactionOpen}>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Edit Transaction</DialogTitle>
-                <DialogDescription>
-                  Update the transaction details.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-account">Account</Label>
-                  <Select
-                    value={newTransaction.account}
-                    onValueChange={(value) => setNewTransaction({ ...newTransaction, account: value })}
-                  >
-                    <SelectTrigger id="edit-account">
-                      <SelectValue placeholder="Select account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-date">Date</Label>
-                  <Input
-                    id="edit-date"
-                    type="date"
-                    value={newTransaction.date}
-                    onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-description">Description</Label>
-                  <Input
-                    id="edit-description"
-                    value={newTransaction.description}
-                    onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-category">Category</Label>
-                  <Select
-                    value={newTransaction.category}
-                    onValueChange={(value) => setNewTransaction({ ...newTransaction, category: value })}
-                  >
-                    <SelectTrigger id="edit-category">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit-payment">Payment Amount</Label>
-                    <Input
-                      id="edit-payment"
-                      type="number"
-                      value={newTransaction.payment === undefined ? "" : newTransaction.payment}
-                      onChange={(e) => {
-                        const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                        setNewTransaction({ 
-                          ...newTransaction, 
-                          payment: value,
-                          deposit: value !== undefined ? undefined : newTransaction.deposit 
-                        });
-                      }}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit-deposit">Deposit Amount</Label>
-                    <Input
-                      id="edit-deposit"
-                      type="number"
-                      value={newTransaction.deposit === undefined ? "" : newTransaction.deposit}
-                      onChange={(e) => {
-                        const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                        setNewTransaction({ 
-                          ...newTransaction, 
-                          deposit: value,
-                          payment: value !== undefined ? undefined : newTransaction.payment 
-                        });
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-memo">Memo (Optional)</Label>
-                  <Input
-                    id="edit-memo"
-                    value={newTransaction.memo}
-                    onChange={(e) => setNewTransaction({ ...newTransaction, memo: e.target.value })}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEditTransactionOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleUpdateTransaction}>Update Transaction</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          
-          <Tabs defaultValue="add">
-            <TabsList>
-              <TabsTrigger value="add" className="px-3">
-                <Plus className="h-4 w-4" />
-              </TabsTrigger>
-              <TabsTrigger value="import" className="px-3">
-                <FileUp className="h-4 w-4" />
-              </TabsTrigger>
-              <TabsTrigger value="export" className="px-3">
-                <Download className="h-4 w-4" />
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="add">
-              <div className="sr-only">Add Transaction</div>
-            </TabsContent>
-            <TabsContent value="import">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <Upload className="mr-2 h-4 w-4" /> Import Transactions
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Import Transactions</DialogTitle>
-                    <DialogDescription>
-                      Upload a CSV or Excel file with your transactions.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="import-file">File</Label>
-                      <Input id="import-file" type="file" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="import-account">Account</Label>
-                      <Select>
-                        <SelectTrigger id="import-account">
-                          <SelectValue placeholder="Select account" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {accounts.map((account) => (
-                            <SelectItem key={account.id} value={account.id}>
-                              {account.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline">Cancel</Button>
-                    <Button>Import</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </TabsContent>
-            <TabsContent value="export">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <Download className="mr-2 h-4 w-4" /> Export Transactions
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Export Transactions</DialogTitle>
-                    <DialogDescription>
-                      Export your transactions to a file.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="export-format">Format</Label>
-                      <Select defaultValue="csv">
-                        <SelectTrigger id="export-format">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="csv">CSV</SelectItem>
-                          <SelectItem value="excel">Excel</SelectItem>
-                          <SelectItem value="json">JSON</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="export-start-date">Start Date</Label>
-                        <Input id="export-start-date" type="date" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="export-end-date">End Date</Label>
-                        <Input id="export-end-date" type="date" />
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline">Cancel</Button>
-                    <Button>Export</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </TabsContent>
-          </Tabs>
+          <Button variant="outline" size="icon" className="border-none">
+            <Download className="mr-0 h-5 w-5" />
+          </Button>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="border rounded-lg overflow-hidden">
+          <CardHeader className="pb-2 bg-slate-50 dark:bg-slate-800 border-b">
+            <CardTitle className="text-base font-semibold">
               Income (Filtered)
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4">
             <div className="text-2xl font-bold text-finance-income">
               <CurrencyDisplay amount={totalIncome} />
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="border rounded-lg overflow-hidden">
+          <CardHeader className="pb-2 bg-slate-50 dark:bg-slate-800 border-b">
+            <CardTitle className="text-base font-semibold">
               Expenses (Filtered)
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4">
             <div className="text-2xl font-bold text-finance-expense">
               <CurrencyDisplay amount={totalExpenses} />
             </div>
@@ -750,115 +382,378 @@ const TransactionsPage = () => {
         </Card>
       </div>
 
-      <FinanceCard>
-        <FinanceCardHeader title={`Transactions (${filteredTransactions.length})`} />
-        <FinanceCardBody>
-          <DataTable
-            data={paginatedTransactions}
-            columns={[
-              {
-                header: "Account",
-                accessorKey: "account",
-                cell: (item) => (
-                  <div className="flex items-center">
-                    <CreditCard className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>{getAccountName(item.account)}</span>
-                  </div>
-                ),
-              },
-              {
-                header: "Date",
-                accessorKey: "date",
-                cell: (item) => formatDate(item.date),
-              },
-              {
-                header: "Description",
-                accessorKey: "description",
-                cell: (item) => (
-                  <div className="max-w-[200px] truncate" title={item.description}>
-                    {item.description}
-                  </div>
-                ),
-              },
-              {
-                header: "Category",
-                accessorKey: "category",
-                cell: (item) => (
-                  <div className="max-w-[150px] truncate" title={getCategoryName(item.category)}>
-                    {getCategoryName(item.category)}
-                  </div>
-                ),
-              },
-              {
-                header: "Payment",
-                accessorKey: "payment",
-                cell: (item) => item.payment ? (
-                  <div className="flex items-center text-finance-expense">
-                    <ArrowUpRight className="h-3 w-3 mr-1" />
-                    <CurrencyDisplay amount={item.payment} />
-                  </div>
-                ) : null,
-                className: "text-right",
-              },
-              {
-                header: "Deposit",
-                accessorKey: "deposit",
-                cell: (item) => item.deposit ? (
-                  <div className="flex items-center text-finance-income">
-                    <ArrowDownRight className="h-3 w-3 mr-1" />
-                    <CurrencyDisplay amount={item.deposit} />
-                  </div>
-                ) : null,
-                className: "text-right",
-              },
-              {
-                header: "Balance",
-                accessorKey: "balance",
-                cell: (item) => (
-                  <CurrencyDisplay amount={item.balance || 0} colorCode={true} />
-                ),
-                className: "text-right font-medium",
-              },
-              {
-                header: "Actions",
-                accessorKey: "actions",
-                cell: (item) => (
-                  <div className="flex space-x-2 justify-end">
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => openEditTransaction(item.id)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => handleDeleteTransaction(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ),
-              },
-            ]}
-            pagination={{
-              pageIndex: currentPage,
-              pageSize,
-              pageCount,
-              onPageChange: setCurrentPage,
-            }}
-            emptyState={
-              <div className="flex flex-col items-center justify-center py-8">
-                <p className="text-muted-foreground mb-4">No transactions found</p>
-                <Button onClick={() => setIsAddTransactionOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Add Transaction
-                </Button>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-800 border-b">
+              <tr>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3">Payee</th>
+                <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedTransactions.length === 0 ? (
+                <tr className="border-b">
+                  <td colSpan={6} className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <p className="text-muted-foreground mb-4">No transactions found</p>
+                      <Button onClick={() => setIsAddTransactionOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> Add Transaction
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paginatedTransactions.map((transaction) => (
+                  <tr key={transaction.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-4 py-3">{formatDate(transaction.date)}</td>
+                    <td className="px-4 py-3">
+                      <TransactionTypeIcon type={getTransactionType(transaction)} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{transaction.description}</div>
+                      <div className="text-xs text-gray-500">
+                        {getCategoryName(transaction.category)} • {getAccountName(transaction.account)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {transaction.deposit ? (
+                        <span className="text-finance-income font-medium">
+                          +<CurrencyDisplay amount={transaction.deposit} />
+                        </span>
+                      ) : transaction.payment ? (
+                        <span className="text-finance-expense font-medium">
+                          <CurrencyDisplay amount={transaction.payment} />
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex justify-center">
+                        <Checkbox
+                          checked={transaction.cleared}
+                          onCheckedChange={(checked) => 
+                            toggleTransactionCleared(transaction.id, checked as boolean)
+                          }
+                          className={transaction.cleared ? "bg-green-500 border-green-500" : ""}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex space-x-1 justify-end">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => openEditTransaction(transaction.id)}
+                          className="h-8 w-8"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleDeleteTransaction(transaction.id)}
+                          className="h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Pagination */}
+        {paginatedTransactions.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <div className="text-sm text-muted-foreground">
+              Page {currentPage + 1} of {pageCount}
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(0)}
+                disabled={currentPage === 0}
+                className="h-8 w-8 p-0"
+              >
+                <span className="sr-only">First page</span>
+                <div className="flex">«</div>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 0}
+                className="h-8 w-8 p-0"
+              >
+                <span className="sr-only">Previous page</span>
+                <div className="flex">‹</div>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === pageCount - 1}
+                className="h-8 w-8 p-0"
+              >
+                <span className="sr-only">Next page</span>
+                <div className="flex">›</div>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(pageCount - 1)}
+                disabled={currentPage === pageCount - 1}
+                className="h-8 w-8 p-0"
+              >
+                <span className="sr-only">Last page</span>
+                <div className="flex">»</div>
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Add Transaction Dialog */}
+      <Dialog open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New Transaction</DialogTitle>
+            <DialogDescription>
+              Enter the details for your new transaction.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="account">Account</Label>
+              <Select
+                value={newTransaction.account}
+                onValueChange={(value) => setNewTransaction({ ...newTransaction, account: value })}
+              >
+                <SelectTrigger id="account">
+                  <SelectValue placeholder="Select account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={newTransaction.date}
+                onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={newTransaction.description}
+                onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
+                placeholder="e.g., Groceries at SuperMarket"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="category">Category</Label>
+              <Select
+                value={newTransaction.category}
+                onValueChange={(value) => setNewTransaction({ ...newTransaction, category: value })}
+              >
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="payment">Payment Amount</Label>
+                <Input
+                  id="payment"
+                  type="number"
+                  value={newTransaction.payment === undefined ? "" : newTransaction.payment}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    setNewTransaction({ 
+                      ...newTransaction, 
+                      payment: value,
+                      deposit: value !== undefined ? undefined : newTransaction.deposit 
+                    });
+                  }}
+                  placeholder="0.00"
+                />
               </div>
-            }
-          />
-        </FinanceCardBody>
-      </FinanceCard>
+              <div className="grid gap-2">
+                <Label htmlFor="deposit">Deposit Amount</Label>
+                <Input
+                  id="deposit"
+                  type="number"
+                  value={newTransaction.deposit === undefined ? "" : newTransaction.deposit}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    setNewTransaction({ 
+                      ...newTransaction, 
+                      deposit: value,
+                      payment: value !== undefined ? undefined : newTransaction.payment 
+                    });
+                  }}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="memo">Memo (Optional)</Label>
+              <Input
+                id="memo"
+                value={newTransaction.memo}
+                onChange={(e) => setNewTransaction({ ...newTransaction, memo: e.target.value })}
+                placeholder="Additional notes"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddTransactionOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddTransaction}>Add Transaction</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Transaction Dialog */}
+      <Dialog open={isEditTransactionOpen} onOpenChange={setIsEditTransactionOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+            <DialogDescription>
+              Update the transaction details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-account">Account</Label>
+              <Select
+                value={newTransaction.account}
+                onValueChange={(value) => setNewTransaction({ ...newTransaction, account: value })}
+              >
+                <SelectTrigger id="edit-account">
+                  <SelectValue placeholder="Select account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-date">Date</Label>
+              <Input
+                id="edit-date"
+                type="date"
+                value={newTransaction.date}
+                onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Input
+                id="edit-description"
+                value={newTransaction.description}
+                onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-category">Category</Label>
+              <Select
+                value={newTransaction.category}
+                onValueChange={(value) => setNewTransaction({ ...newTransaction, category: value })}
+              >
+                <SelectTrigger id="edit-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-payment">Payment Amount</Label>
+                <Input
+                  id="edit-payment"
+                  type="number"
+                  value={newTransaction.payment === undefined ? "" : newTransaction.payment}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    setNewTransaction({ 
+                      ...newTransaction, 
+                      payment: value,
+                      deposit: value !== undefined ? undefined : newTransaction.deposit 
+                    });
+                  }}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-deposit">Deposit Amount</Label>
+                <Input
+                  id="edit-deposit"
+                  type="number"
+                  value={newTransaction.deposit === undefined ? "" : newTransaction.deposit}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    setNewTransaction({ 
+                      ...newTransaction, 
+                      deposit: value,
+                      payment: value !== undefined ? undefined : newTransaction.payment 
+                    });
+                  }}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-memo">Memo (Optional)</Label>
+              <Input
+                id="edit-memo"
+                value={newTransaction.memo}
+                onChange={(e) => setNewTransaction({ ...newTransaction, memo: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditTransactionOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateTransaction}>Update Transaction</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

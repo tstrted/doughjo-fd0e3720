@@ -29,7 +29,12 @@ export const useTransactions = () => {
 
   // CRUD operations for transactions
   const addTransaction = (transaction: Omit<Transaction, "id">) => {
-    const newTransaction = { id: generateId(), ...transaction };
+    const newTransaction = { 
+      id: generateId(), 
+      ...transaction,
+      cleared: transaction.cleared || false,
+      type: transaction.type || (transaction.deposit ? "deposit" : "payment")
+    };
     setTransactions([...transactions, newTransaction]);
   };
 
