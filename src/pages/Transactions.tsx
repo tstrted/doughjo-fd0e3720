@@ -9,6 +9,7 @@ import { TransactionFilters } from "@/components/transactions/TransactionFilters
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { useTransactionBalances } from "@/hooks/useTransactionBalances";
 import { useTransactionFilters } from "@/hooks/useTransactionFilters";
+import { exportToCsv, CsvColumn, formatDateForExport } from "@/utils/csvExport";
 
 const TransactionsPage = () => {
   const { 
@@ -71,35 +72,59 @@ const TransactionsPage = () => {
       return;
     }
     
-    // Create CSV header
-    const header = ["Date", "Description", "Category", "Account", "Payment", "Deposit", "Memo"];
+    // Define CSV columns configuration
+    const columns: CsvColumn[] = [
+      { 
+        header: "Date", 
+        accessor: (transaction: Transaction) => formatDateForExport(transaction.date)
+      },
+      { 
+        header: "Description", 
+        accessor: (transaction: Transaction) => transaction.description 
+      },
+      { 
+        header: "Category", 
+        accessor: (transaction: Transaction) => 
+          categories.find(c => c.id === transaction.category)?.name || transaction.category
+      },
+      { 
+        header: "Account", 
+        accessor: (transaction: Transaction) => 
+          accounts.find(a => a.id === transaction.account)?.name || transaction.account
+      },
+      { 
+        header: "Payment", 
+        accessor: (transaction: Transaction) => transaction.payment || ""
+      },
+      { 
+        header: "Deposit", 
+        accessor: (transaction: Transaction) => transaction.deposit || ""
+      },
+      { 
+        header: "Memo", 
+        accessor: (transaction: Transaction) => transaction.memo || ""
+      }
+    ];
     
-    // Create CSV rows
-    const rows = paginatedTransactions.map(transaction => [
-      transaction.date,
-      transaction.description,
-      categories.find(c => c.id === transaction.category)?.name || transaction.category,
-      accounts.find(a => a.id === transaction.account)?.name || transaction.account,
-      transaction.payment || "",
-      transaction.deposit || "",
-      transaction.memo || ""
-    ]);
-    
-    // Combine header and rows
-    const csvContent = [header, ...rows].map(row => row.join(",")).join("\n");
-    
-    // Create download link
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `transactions-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    link.click();
-    
-    toast({
-      title: "Success",
-      description: `${paginatedTransactions.length} transactions exported`,
-    });
+    try {
+      // Use the utility function to export data
+      exportToCsv(
+        paginatedTransactions, 
+        columns, 
+        `transactions-${format(new Date(), "yyyy-MM-dd")}`
+      );
+      
+      toast({
+        title: "Success",
+        description: `${paginatedTransactions.length} transactions exported`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive"
+      });
+    }
   };
   
   // Handle transaction form submission
