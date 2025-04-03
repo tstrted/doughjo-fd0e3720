@@ -1,7 +1,7 @@
 
-import React from "react";
+import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Filter, Download, Search } from "lucide-react";
+import { Plus, Filter, Download, Upload, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { TransactionFilterPanel } from "./TransactionFilterPanel";
 
@@ -25,6 +25,7 @@ interface TransactionFiltersProps {
   categories: { id: string; name: string }[];
   onResetFilters: () => void;
   onExportTransactions?: () => void;
+  onImportTransactions?: (file: File) => void;
 }
 
 export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
@@ -35,9 +36,11 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
   categories,
   onResetFilters,
   onExportTransactions,
+  onImportTransactions,
 }) => {
   const [isFilterOpen, setIsFilterOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState(filter.searchTerm || "");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update local search term when filter changes
   React.useEffect(() => {
@@ -54,6 +57,19 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
       ...filter,
       searchTerm: searchTerm,
     });
+  };
+
+  const handleFileUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onImportTransactions) {
+      onImportTransactions(file);
+      // Reset the input so the same file can be selected again
+      e.target.value = '';
+    }
   };
 
   return (
@@ -76,6 +92,26 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
           >
             <Plus className="h-5 w-5" /> Add Transaction
           </Button>
+          
+          {onImportTransactions && (
+            <>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="border-none"
+                onClick={handleFileUpload}
+              >
+                <Upload className="mr-0 h-5 w-5" />
+              </Button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".csv,.xlsx,.xls"
+                className="hidden"
+              />
+            </>
+          )}
           
           {onExportTransactions && (
             <Button 
