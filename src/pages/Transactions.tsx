@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useFinance } from "@/context/FinanceContext";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +8,7 @@ import { TransactionSummary } from "@/components/transactions/TransactionSummary
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { useTransactionBalances } from "@/hooks/useTransactionBalances";
+import { useTransactionFilters } from "@/hooks/useTransactionFilters";
 
 const TransactionsPage = () => {
   const { 
@@ -21,15 +21,26 @@ const TransactionsPage = () => {
   } = useFinance();
   const { toast } = useToast();
   
-  // Apply the new useTransactionBalances hook
+  // Apply the transaction balances hook
   useTransactionBalances(transactions, updateTransaction);
+  
+  // Apply the transaction filters hook
+  const {
+    filter,
+    paginatedTransactions,
+    currentPage,
+    pageCount,
+    totalIncome,
+    totalExpenses,
+    handleFilterChange,
+    handleResetFilters,
+    setCurrentPage
+  } = useTransactionFilters(transactions);
   
   // UI state
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [isEditTransactionOpen, setIsEditTransactionOpen] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const pageSize = 10;
   
   // Transaction form state
   const [newTransaction, setNewTransaction] = useState({
@@ -43,69 +54,6 @@ const TransactionsPage = () => {
     cleared: false,
     type: "payment" as "payment" | "deposit" | "transfer" | "balance" | string,
   });
-
-  // Enhanced filter state
-  const [filter, setFilter] = useState({
-    account: "",
-    category: "",
-    startDate: "",
-    endDate: "",
-    searchTerm: "",
-  });
-  
-  // Get filtered transactions
-  const filteredTransactions = transactions
-    .filter(transaction => {
-      // Account filter
-      if (filter.account && transaction.account !== filter.account) return false;
-      
-      // Category filter
-      if (filter.category && transaction.category !== filter.category) return false;
-      
-      // Date range filter
-      if (filter.startDate) {
-        const transactionDate = new Date(transaction.date);
-        const startDate = new Date(filter.startDate);
-        if (transactionDate < startDate) return false;
-      }
-      
-      if (filter.endDate) {
-        const transactionDate = new Date(transaction.date);
-        const endDate = new Date(filter.endDate);
-        if (transactionDate > endDate) return false;
-      }
-      
-      // Search term filter (case insensitive search on description and memo)
-      if (filter.searchTerm) {
-        const searchTerm = filter.searchTerm.toLowerCase();
-        const descriptionMatch = transaction.description.toLowerCase().includes(searchTerm);
-        const memoMatch = transaction.memo ? transaction.memo.toLowerCase().includes(searchTerm) : false;
-        if (!descriptionMatch && !memoMatch) return false;
-      }
-      
-      return true;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  
-  // Get paginated transactions
-  const paginatedTransactions = filteredTransactions.slice(
-    currentPage * pageSize,
-    (currentPage + 1) * pageSize
-  );
-  
-  // Calculate page count
-  const pageCount = Math.ceil(filteredTransactions.length / pageSize);
-  
-  // Calculate total income and expenses for the current filtered view
-  const totalIncome = filteredTransactions.reduce(
-    (sum, transaction) => sum + (transaction.deposit || 0),
-    0
-  );
-  
-  const totalExpenses = filteredTransactions.reduce(
-    (sum, transaction) => sum + (transaction.payment || 0),
-    0
-  );
   
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -113,27 +61,9 @@ const TransactionsPage = () => {
     return format(date, "MM/dd/yy");
   };
   
-  // Handle filter changes
-  const handleFilterChange = (newFilter: typeof filter) => {
-    setFilter(newFilter);
-    setCurrentPage(0); // Reset to first page when filter changes
-  };
-  
-  // Reset all filters
-  const handleResetFilters = () => {
-    setFilter({
-      account: "",
-      category: "",
-      startDate: "",
-      endDate: "",
-      searchTerm: "",
-    });
-    setCurrentPage(0);
-  };
-  
   // Export transactions to CSV
   const handleExportTransactions = () => {
-    if (filteredTransactions.length === 0) {
+    if (paginatedTransactions.length === 0) {
       toast({
         title: "No transactions to export",
         variant: "destructive"
@@ -145,7 +75,7 @@ const TransactionsPage = () => {
     const header = ["Date", "Description", "Category", "Account", "Payment", "Deposit", "Memo"];
     
     // Create CSV rows
-    const rows = filteredTransactions.map(transaction => [
+    const rows = paginatedTransactions.map(transaction => [
       transaction.date,
       transaction.description,
       categories.find(c => c.id === transaction.category)?.name || transaction.category,
@@ -168,7 +98,7 @@ const TransactionsPage = () => {
     
     toast({
       title: "Success",
-      description: `${filteredTransactions.length} transactions exported`,
+      description: `${paginatedTransactions.length} transactions exported`,
     });
   };
   
@@ -335,7 +265,7 @@ const TransactionsPage = () => {
         categories={categories}
         accounts={accounts}
         currentPage={currentPage}
-        pageSize={pageSize}
+        pageSize={10}
         pageCount={pageCount}
         onPageChange={setCurrentPage}
         onEdit={openEditTransaction}
