@@ -33,83 +33,94 @@ export function useTransactionImport(
   const [importPreview, setImportPreview] = useState<Array<any>>([]);
 
   // Handle file upload - preventing default to avoid page navigation
-  const handleFileUpload = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
+  const handleFileUpload = (e: React.MouseEvent<Element, MouseEvent>) => {
+    // Explicitly prevent default action and stop propagation
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Trigger file input click
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
-    fileInputRef.current?.click();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
     try {
-      const data = await parseImportFile(file);
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Clear the input value to ensure the same file can be selected again
+      e.target.value = '';
       
-      if (data.length === 0) {
+      try {
+        const data = await parseImportFile(file);
+        
+        if (data.length === 0) {
+          toast({
+            title: "Import failed",
+            description: "No data found in file",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        setImportData(data);
+        setImportHeaders(Object.keys(data[0]));
+        
+        // Set default mappings based on common header names
+        const defaultMapping: ImportColumnMapping = {
+          date: '',
+          description: '',
+          category: '',
+          account: '',
+          payment: '',
+          deposit: '',
+          amount: '',
+          memo: '',
+        };
+        
+        // Try to guess mappings from headers
+        const headers = Object.keys(data[0]).map(h => h.toLowerCase());
+        
+        headers.forEach(header => {
+          if (/date|trans(action)?date/.test(header)) defaultMapping.date = header;
+          if (/desc|description|payee|merchant|transaction|title/.test(header)) defaultMapping.description = header;
+          if (/category|cat|type|group/.test(header)) defaultMapping.category = header;
+          if (/account|acct|source/.test(header)) defaultMapping.account = header;
+          if (/payment|expense|debit|paid|withdrawal|withdraw/.test(header)) defaultMapping.payment = header;
+          if (/deposit|income|credit|received|deposit/.test(header)) defaultMapping.deposit = header;
+          if (/amount|sum|total|value/.test(header)) defaultMapping.amount = header;
+          if (/memo|note|notes|comment|description2/.test(header)) defaultMapping.memo = header;
+        });
+        
+        setImportMapping(defaultMapping);
+        
+        // Generate preview
+        if (defaultMapping.date && defaultMapping.description) {
+          try {
+            const preview = mapImportedTransactions(data.slice(0, 5), defaultMapping);
+            setImportPreview(preview);
+          } catch (e) {
+            console.error("Preview generation error:", e);
+          }
+        }
+        
+        setIsImportOpen(true);
+      } catch (error) {
+        console.error("Error parsing file:", error);
         toast({
           title: "Import failed",
-          description: "No data found in file",
+          description: error instanceof Error ? error.message : "Unknown error occurred",
           variant: "destructive"
         });
-        return;
       }
-      
-      setImportData(data);
-      setImportHeaders(Object.keys(data[0]));
-      
-      // Set default mappings based on common header names
-      const defaultMapping: ImportColumnMapping = {
-        date: '',
-        description: '',
-        category: '',
-        account: '',
-        payment: '',
-        deposit: '',
-        amount: '',
-        memo: '',
-      };
-      
-      // Try to guess mappings from headers
-      const headers = Object.keys(data[0]).map(h => h.toLowerCase());
-      
-      headers.forEach(header => {
-        if (/date|trans(action)?date/.test(header)) defaultMapping.date = header;
-        if (/desc|description|payee|merchant|transaction|title/.test(header)) defaultMapping.description = header;
-        if (/category|cat|type|group/.test(header)) defaultMapping.category = header;
-        if (/account|acct|source/.test(header)) defaultMapping.account = header;
-        if (/payment|expense|debit|paid|withdrawal|withdraw/.test(header)) defaultMapping.payment = header;
-        if (/deposit|income|credit|received|deposit/.test(header)) defaultMapping.deposit = header;
-        if (/amount|sum|total|value/.test(header)) defaultMapping.amount = header;
-        if (/memo|note|notes|comment|description2/.test(header)) defaultMapping.memo = header;
-      });
-      
-      setImportMapping(defaultMapping);
-      
-      // Generate preview
-      if (defaultMapping.date && defaultMapping.description) {
-        try {
-          const preview = mapImportedTransactions(data.slice(0, 5), defaultMapping);
-          setImportPreview(preview);
-        } catch (e) {
-          console.error("Preview generation error:", e);
-        }
-      }
-      
-      setIsImportOpen(true);
-      
-      // Reset the input so the same file can be selected again
-      e.target.value = '';
     } catch (error) {
+      console.error("File selection error:", error);
       toast({
-        title: "Import failed",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
+        title: "Import error",
+        description: "An unexpected error occurred when selecting the file",
         variant: "destructive"
       });
-      
-      // Reset the input so the same file can be selected again
-      e.target.value = '';
     }
   };
   
@@ -214,6 +225,7 @@ export function useTransactionImport(
         variant: errorCount > 0 ? "destructive" : "default"
       });
     } catch (error) {
+      console.error("Import confirmation error:", error);
       toast({
         title: "Import failed",
         description: error instanceof Error ? error.message : "Unknown error occurred",

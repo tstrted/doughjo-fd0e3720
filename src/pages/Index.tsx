@@ -7,7 +7,8 @@ const Index = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    navigate("/budget");
+    // Use replace to avoid adding to history stack
+    navigate("/budget", { replace: true });
   }, [navigate]);
   
   return null;

@@ -25,7 +25,8 @@ interface TransactionFiltersProps {
   categories: { id: string; name: string }[];
   onResetFilters: () => void;
   onExportTransactions?: () => void;
-  onImportTransactions?: (e?: React.MouseEvent) => void;
+  onImportTransactions?: (e: React.MouseEvent<Element, MouseEvent>) => void;
+  onFilterClick?: (e: React.MouseEvent) => void;
 }
 
 export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
@@ -37,6 +38,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
   onResetFilters,
   onExportTransactions,
   onImportTransactions,
+  onFilterClick,
 }) => {
   const [isFilterOpen, setIsFilterOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState(filter.searchTerm || "");
@@ -59,8 +61,17 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
   };
 
   const handleFilterClick = (e: React.MouseEvent) => {
+    // Prevent default behavior
     e.preventDefault();
+    e.stopPropagation();
+    
+    // Open the filter panel
     setIsFilterOpen(true);
+    
+    // Call the provided handler if it exists
+    if (onFilterClick) {
+      onFilterClick(e);
+    }
   };
 
   return (
@@ -73,6 +84,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
             size="icon" 
             className="border-none"
             onClick={handleFilterClick}
+            type="button"
           >
             <Filter className="mr-0 h-5 w-5" />
           </Button>
@@ -80,6 +92,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
           <Button 
             className="gap-2 bg-primary text-white"
             onClick={onAddTransaction}
+            type="button"
           >
             <Plus className="h-5 w-5" /> Add Transaction
           </Button>
@@ -89,7 +102,8 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
               variant="outline" 
               size="icon" 
               className="border-none"
-              onClick={onImportTransactions}
+              onClick={(e) => onImportTransactions(e)}
+              type="button"
             >
               <Upload className="mr-0 h-5 w-5" />
             </Button>
@@ -101,6 +115,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
               size="icon" 
               className="border-none"
               onClick={onExportTransactions}
+              type="button"
             >
               <Download className="mr-0 h-5 w-5" />
             </Button>

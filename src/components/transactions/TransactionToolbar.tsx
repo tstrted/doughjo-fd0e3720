@@ -11,7 +11,7 @@ interface TransactionToolbarProps {
   categories: { id: string; name: string }[];
   onResetFilters: () => void;
   onExportTransactions?: () => void;
-  onImportTransactions?: (e?: React.MouseEvent) => void;
+  onImportTransactions?: (e: React.MouseEvent<Element, MouseEvent>) => void;
 }
 
 export const TransactionToolbar: React.FC<TransactionToolbarProps> = ({
@@ -24,6 +24,12 @@ export const TransactionToolbar: React.FC<TransactionToolbarProps> = ({
   onExportTransactions,
   onImportTransactions,
 }) => {
+  // Handle filter button click to prevent default navigation
+  const handleFilterClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
     <TransactionFilters
       onAddTransaction={onAddTransaction}
@@ -34,6 +40,7 @@ export const TransactionToolbar: React.FC<TransactionToolbarProps> = ({
       onResetFilters={onResetFilters}
       onExportTransactions={onExportTransactions}
       onImportTransactions={onImportTransactions}
+      onFilterClick={handleFilterClick}
     />
   );
 };

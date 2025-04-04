@@ -182,7 +182,12 @@ export function parseImportFile(file: File): Promise<Record<string, string>[]> {
       
       reader.onload = (e) => {
         try {
-          const content = e.target?.result as string;
+          if (!e.target || !e.target.result) {
+            reject(new Error("Error reading file - no content found"));
+            return;
+          }
+          
+          const content = e.target.result as string;
           
           if (fileExtension === 'csv') {
             // Parse CSV directly
@@ -193,6 +198,7 @@ export function parseImportFile(file: File): Promise<Record<string, string>[]> {
             reject(new Error("Excel import is not supported. Please export as CSV and try again."));
           }
         } catch (error) {
+          console.error("File parsing error:", error);
           reject(error);
         }
       };
