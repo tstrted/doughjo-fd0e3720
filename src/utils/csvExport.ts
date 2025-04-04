@@ -91,60 +91,70 @@ export interface ImportColumnMapping {
  * @returns Array of objects with headers as keys
  */
 export function parseCsvContent(content: string): Record<string, string>[] {
-  // Split content into lines
-  const lines = content.split(/\r\n|\n/);
-  if (lines.length < 2) throw new Error("CSV file must contain headers and at least one data row");
-  
-  // Parse headers
-  const headers = parseCSVLine(lines[0]);
-  
-  // Parse data rows
-  const result: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue; // Skip empty lines
+  try {
+    // Split content into lines
+    const lines = content.split(/\r\n|\n/);
+    if (lines.length < 2) throw new Error("CSV file must contain headers and at least one data row");
     
-    const values = parseCSVLine(lines[i]);
-    if (values.length !== headers.length) {
-      console.warn(`Line ${i + 1} has ${values.length} columns, expected ${headers.length}. Skipping.`);
-      continue;
+    // Parse headers
+    const headers = parseCSVLine(lines[0]);
+    
+    // Parse data rows
+    const result: Record<string, string>[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue; // Skip empty lines
+      
+      const values = parseCSVLine(lines[i]);
+      if (values.length !== headers.length) {
+        console.warn(`Line ${i + 1} has ${values.length} columns, expected ${headers.length}. Skipping.`);
+        continue;
+      }
+      
+      const row: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index];
+      });
+      
+      result.push(row);
     }
     
-    const row: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      row[header] = values[index];
-    });
-    
-    result.push(row);
+    return result;
+  } catch (error) {
+    console.error("Error parsing CSV content:", error);
+    throw new Error("Failed to parse CSV content. Please check the file format.");
   }
-  
-  return result;
 }
 
 /**
  * Parse a CSV line, handling quoted values with commas
  */
 function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
+  try {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
     
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
-    } else {
-      current += char;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
     }
+    
+    // Add the last field
+    result.push(current);
+    
+    return result;
+  } catch (error) {
+    console.error("Error parsing CSV line:", error);
+    throw new Error("Failed to parse CSV line. Please check the file format.");
   }
-  
-  // Add the last field
-  result.push(current);
-  
-  return result;
 }
 
 /**
@@ -154,46 +164,52 @@ function parseCSVLine(line: string): string[] {
  */
 export function parseImportFile(file: File): Promise<Record<string, string>[]> {
   return new Promise((resolve, reject) => {
-    // Basic validation
-    if (!file) {
-      reject(new Error("No file selected"));
-      return;
-    }
-    
-    const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    
-    if (fileExtension !== 'csv' && fileExtension !== 'xlsx' && fileExtension !== 'xls') {
-      reject(new Error("Please select a CSV or Excel file"));
-      return;
-    }
-    
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        
-        if (fileExtension === 'csv') {
-          // Parse CSV directly
-          const data = parseCsvContent(content);
-          resolve(data);
-        } else {
-          // For Excel files, we need to inform the user we can only process CSV
-          reject(new Error("Excel import is not supported. Please export as CSV and try again."));
-        }
-      } catch (error) {
-        reject(error);
+    try {
+      // Basic validation
+      if (!file) {
+        reject(new Error("No file selected"));
+        return;
       }
-    };
-    
-    reader.onerror = () => {
-      reject(new Error("Error reading file"));
-    };
-    
-    if (fileExtension === 'csv') {
-      reader.readAsText(file);
-    } else {
-      reject(new Error("Excel import is not supported. Please export as CSV and try again."));
+      
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      
+      if (fileExtension !== 'csv' && fileExtension !== 'xlsx' && fileExtension !== 'xls') {
+        reject(new Error("Please select a CSV or Excel file"));
+        return;
+      }
+      
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          
+          if (fileExtension === 'csv') {
+            // Parse CSV directly
+            const data = parseCsvContent(content);
+            resolve(data);
+          } else {
+            // For Excel files, we need to inform the user we can only process CSV
+            reject(new Error("Excel import is not supported. Please export as CSV and try again."));
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      reader.onerror = (event) => {
+        console.error("FileReader error:", event);
+        reject(new Error("Error reading file"));
+      };
+      
+      if (fileExtension === 'csv') {
+        reader.readAsText(file);
+      } else {
+        reject(new Error("Excel import is not supported. Please export as CSV and try again."));
+      }
+    } catch (error) {
+      console.error("Error in parseImportFile:", error);
+      reject(error);
     }
   });
 }

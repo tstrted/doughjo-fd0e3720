@@ -11,7 +11,7 @@ interface TransactionToolbarProps {
   categories: { id: string; name: string }[];
   onResetFilters: () => void;
   onExportTransactions?: () => void;
-  onImportTransactions?: () => void;
+  onImportTransactions?: (e?: React.MouseEvent) => void;
 }
 
 export const TransactionToolbar: React.FC<TransactionToolbarProps> = ({

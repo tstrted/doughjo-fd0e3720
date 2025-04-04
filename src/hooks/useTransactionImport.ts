@@ -32,8 +32,11 @@ export function useTransactionImport(
   const [importHeaders, setImportHeaders] = useState<string[]>([]);
   const [importPreview, setImportPreview] = useState<Array<any>>([]);
 
-  // Handle file upload
-  const handleFileUpload = () => {
+  // Handle file upload - preventing default to avoid page navigation
+  const handleFileUpload = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
     fileInputRef.current?.click();
   };
 

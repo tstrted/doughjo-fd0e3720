@@ -25,7 +25,7 @@ interface TransactionFiltersProps {
   categories: { id: string; name: string }[];
   onResetFilters: () => void;
   onExportTransactions?: () => void;
-  onImportTransactions?: () => void;
+  onImportTransactions?: (e?: React.MouseEvent) => void;
 }
 
 export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
@@ -58,6 +58,11 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
     });
   };
 
+  const handleFilterClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsFilterOpen(true);
+  };
+
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex items-center justify-between">
@@ -67,7 +72,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
             variant="outline" 
             size="icon" 
             className="border-none"
-            onClick={() => setIsFilterOpen(true)}
+            onClick={handleFilterClick}
           >
             <Filter className="mr-0 h-5 w-5" />
           </Button>
