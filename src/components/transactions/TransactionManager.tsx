@@ -1,19 +1,20 @@
 
 import React from "react";
 import { useFinance } from "@/context/FinanceContext";
-import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
 import { Transaction } from "@/types/finance";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { TransactionSummary } from "@/components/transactions/TransactionSummary";
 import { TransactionFilters } from "@/components/transactions/TransactionFilters";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { TransactionImportDialog } from "@/components/transactions/TransactionImportDialog";
+import { TransactionToolbar } from "@/components/transactions/TransactionToolbar";
 import { useTransactionBalances } from "@/hooks/useTransactionBalances";
 import { useTransactionFilters } from "@/hooks/useTransactionFilters";
 import { useTransactionForm } from "@/hooks/useTransactionForm";
 import { useTransactionImport } from "@/hooks/useTransactionImport";
 import { useTransactionExport } from "@/hooks/useTransactionExport";
+import { useTransactionActions } from "@/hooks/useTransactionActions";
+import { format } from "date-fns";
 
 export const TransactionManager: React.FC = () => {
   const { 
@@ -24,7 +25,6 @@ export const TransactionManager: React.FC = () => {
     updateTransaction, 
     deleteTransaction,
   } = useFinance();
-  const { toast } = useToast();
   
   // Apply the transaction balances hook
   useTransactionBalances(transactions, updateTransaction);
@@ -83,23 +83,8 @@ export const TransactionManager: React.FC = () => {
     return format(date, "MM/dd/yy");
   };
   
-  // Handle transaction deletion
-  const handleDeleteTransaction = (transactionId: string) => {
-    deleteTransaction(transactionId);
-    toast({
-      title: "Success",
-      description: "Transaction deleted successfully",
-    });
-  };
-  
-  // Toggle transaction cleared status
-  const toggleTransactionCleared = (transactionId: string, isCleared: boolean) => {
-    updateTransaction(transactionId, { cleared: isCleared });
-    toast({
-      title: "Status Updated",
-      description: isCleared ? "Transaction marked as cleared" : "Transaction marked as uncleared",
-    });
-  };
+  // Handle transaction deletion and clearing status
+  const { handleDeleteTransaction, toggleTransactionCleared } = useTransactionActions(deleteTransaction, updateTransaction);
   
   // Determine transaction type for icon
   const getTransactionType = (transaction: Transaction) => {
@@ -121,8 +106,8 @@ export const TransactionManager: React.FC = () => {
         className="hidden"
       />
       
-      <TransactionFilters 
-        onAddTransaction={() => setIsAddTransactionOpen(true)} 
+      <TransactionToolbar
+        onAddTransaction={() => setIsAddTransactionOpen(true)}
         onFilterChange={handleFilterChange}
         filter={filter}
         accounts={accounts}
