@@ -186,9 +186,10 @@ const SettingsPage = () => {
       // Show success toast
       toast.success("All data has been cleared successfully. Reloading page...");
       
-      // Reload the page to reinitialize all hooks with default values
+      // Force a hard reload to ensure all application state is reset
+      // This will force React to completely re-initialize all hooks and context
       setTimeout(() => {
-        window.location.reload();
+        window.location.href = "/"; // Redirect to the home page
       }, 1000);
     } catch (error) {
       console.error("Error clearing data:", error);
