@@ -11,6 +11,7 @@ import MonthNavigator from "@/components/budget/MonthNavigator";
 import BalanceCard from "@/components/budget/BalanceCard";
 import BudgetCategoryList from "@/components/budget/BudgetCategoryList";
 import BudgetStatsCard from "@/components/budget/BudgetStatsCard";
+import BudgetItemsTable from "@/components/budget/BudgetItemsTable";
 
 const Budget = () => {
   const {
@@ -32,7 +33,7 @@ const Budget = () => {
   const [isEditBudgetItemOpen, setIsEditBudgetItemOpen] = useState(false);
   const [currentBudgetItem, setCurrentBudgetItem] = useState<BudgetItem | null>(null);
 
-  // Initialize empty categoryGroups instead of using mock data
+  // Initialize empty categoryGroups
   const [categoryGroups, setCategoryGroups] = useState([
     {
       name: "Available",
@@ -56,37 +57,82 @@ const Budget = () => {
 
   // Effect to update categoryGroups whenever relevant data changes
   useEffect(() => {
-    // This would be where you transform your real budget data into the category groups
-    // For now, we'll just ensure the groups are empty if there's no data
+    // Transform budget items into category groups
+    const activeMonthKey = months[activeMonth - 1].toLowerCase();
     
-    // Check if we have actual budget items
-    if (budgetItems.length === 0) {
-      setCategoryGroups([
-        {
-          name: "Available",
-          total: 0,
-          expanded: true,
-          categories: []
-        },
-        {
-          name: "Spending",
-          total: 0,
-          expanded: true,
-          categories: []
-        },
-        {
-          name: "Debt Payment",
-          total: 0,
-          expanded: true,
-          categories: []
-        }
-      ]);
-    } else {
-      // Here you would transform your budget items into category groups
-      // This is just a placeholder for the real logic
-      // In a full implementation, you'd map through budgetItems and categories
-      // to build these groups properly
-    }
+    // Process income items
+    const incomeItems = budgetItems.filter(item => item.type === "income");
+    const incomeTotal = incomeItems.reduce((sum, item) => {
+      return sum + (item.amounts[activeMonthKey] || 0);
+    }, 0);
+    
+    // Process expense items
+    const expenseItems = budgetItems.filter(item => item.type === "expense");
+    const expenseTotal = expenseItems.reduce((sum, item) => {
+      return sum + (item.amounts[activeMonthKey] || 0);
+    }, 0);
+    
+    // Process spending categories
+    const spendingCategories = expenseItems
+      .filter(item => {
+        const category = categories.find(c => c.id === item.category);
+        return category && category.type !== "D"; // Not debt
+      })
+      .map(item => {
+        const category = categories.find(c => c.id === item.category);
+        return {
+          id: item.id,
+          name: category ? category.name : "Unknown",
+          amount: item.amounts[activeMonthKey] || 0,
+          spent: 0 // Would be calculated from transactions
+        };
+      });
+    
+    // Process debt categories
+    const debtCategories = expenseItems
+      .filter(item => {
+        const category = categories.find(c => c.id === item.category);
+        return category && category.type === "D"; // Debt type
+      })
+      .map(item => {
+        const category = categories.find(c => c.id === item.category);
+        return {
+          id: item.id,
+          name: category ? category.name : "Unknown",
+          amount: item.amounts[activeMonthKey] || 0,
+          spent: 0 // Would be calculated from transactions
+        };
+      });
+    
+    // Update category groups
+    setCategoryGroups([
+      {
+        name: "Available",
+        total: incomeTotal - expenseTotal,
+        expanded: true,
+        categories: incomeItems.map(item => {
+          const category = categories.find(c => c.id === item.category);
+          return {
+            id: item.id,
+            name: category ? category.name : "Unknown",
+            amount: item.amounts[activeMonthKey] || 0,
+            spent: 0
+          };
+        })
+      },
+      {
+        name: "Spending",
+        total: spendingCategories.reduce((sum, cat) => sum + cat.amount, 0),
+        expanded: true,
+        categories: spendingCategories
+      },
+      {
+        name: "Debt Payment",
+        total: debtCategories.reduce((sum, cat) => sum + cat.amount, 0),
+        expanded: true,
+        categories: debtCategories
+      }
+    ]);
   }, [budgetItems, categories, transactions, activeMonth, activeYear]);
 
   // New budget item state
@@ -109,7 +155,7 @@ const Budget = () => {
   const actualSpending = calculateActualSpending(activeMonth, activeYear);
   
   // Calculate unbudgeted funds
-  const unbudgetedFunds = 0;
+  const unbudgetedFunds = income - expenses;
 
   // Handler for toggling category group expansion
   const handleToggleGroup = (groupName: string) => {
@@ -188,6 +234,24 @@ const Budget = () => {
     }
   };
 
+  // Filter budget items by type
+  const incomeItems = budgetItems.filter(item => item.type === "income");
+  const expenseItems = budgetItems.filter(item => item.type === "expense");
+
+  // Handlers for editing and deleting budget items
+  const handleEditBudgetItem = (item: BudgetItem) => {
+    setCurrentBudgetItem(item);
+    setIsEditBudgetItemOpen(true);
+  };
+
+  const handleDeleteBudgetItem = (id: string) => {
+    deleteBudgetItem(id);
+    toast({
+      title: "Success",
+      description: "Budget item deleted successfully",
+    });
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -225,10 +289,40 @@ const Budget = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Section 2: Left side with budget categories */}
         <div className="md:col-span-2">
+          {/* Display the BudgetCategoryList for visual categories */}
           <BudgetCategoryList
             categoryGroups={categoryGroups}
             onToggleGroup={handleToggleGroup}
           />
+          
+          {/* Add BudgetItemsTable to show tabular data */}
+          <div className="mt-6">
+            <BudgetItemsTable
+              incomeItems={incomeItems}
+              expenseItems={expenseItems}
+              months={months}
+              activeMonth={activeMonth}
+              getCategoryName={getCategoryName}
+              onEditBudgetItem={handleEditBudgetItem}
+              onDeleteBudgetItem={handleDeleteBudgetItem}
+              onAddIncome={() => {
+                setNewBudgetItem({
+                  category: "",
+                  type: "income",
+                  amounts: {}
+                });
+                setIsAddBudgetItemOpen(true);
+              }}
+              onAddExpense={() => {
+                setNewBudgetItem({
+                  category: "",
+                  type: "expense",
+                  amounts: {}
+                });
+                setIsAddBudgetItemOpen(true);
+              }}
+            />
+          </div>
         </div>
         
         {/* Section 3: Right side with stats cards */}
