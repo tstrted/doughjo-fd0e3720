@@ -27,7 +27,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Category } from "@/types/finance";
 
 const SettingsPage = () => {
-  const { settings, updateSettings, categories, addCategory, updateCategory, deleteCategory } = useFinance();
+  const { 
+    settings, 
+    updateSettings, 
+    categories, 
+    addCategory, 
+    updateCategory, 
+    deleteCategory 
+  } = useFinance();
   
   // Local settings state
   const [localSettings, setLocalSettings] = useState({
@@ -47,6 +54,9 @@ const SettingsPage = () => {
 
   // Edit category form state
   const [editCategory, setEditCategory] = useState<Category | null>(null);
+  
+  // State for controlling danger zone dialog
+  const [showClearDataDialog, setShowClearDataDialog] = useState(false);
   
   // Update local settings when the context settings change
   useEffect(() => {
@@ -147,6 +157,34 @@ const SettingsPage = () => {
     } catch (error) {
       console.error("Error exporting data:", error);
       toast.error("Failed to export data");
+    }
+  };
+
+  // Clear all data
+  const handleClearAllData = () => {
+    try {
+      // Clear all items from localStorage
+      localStorage.removeItem("transactions");
+      localStorage.removeItem("accounts");
+      localStorage.removeItem("categories");
+      localStorage.removeItem("budgetItems");
+      localStorage.removeItem("settings");
+      localStorage.removeItem("subAccounts");
+      localStorage.removeItem("subAccountTransactions");
+      
+      // Close the dialog
+      setShowClearDataDialog(false);
+      
+      // Show success toast
+      toast.success("All data has been cleared successfully. Reload the page to see the changes.");
+      
+      // Reload the page to reinitialize all hooks with default values
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error) {
+      console.error("Error clearing data:", error);
+      toast.error("Failed to clear data");
     }
   };
   
@@ -506,9 +544,30 @@ const SettingsPage = () => {
               <div className="pt-4 border-t">
                 <h3 className="text-lg font-medium text-destructive mb-4">Danger Zone</h3>
                 <div className="space-y-4">
-                  <Button variant="destructive" className="w-full">
-                    <Trash2 className="mr-2 h-4 w-4" /> Clear All Data
-                  </Button>
+                  <Dialog open={showClearDataDialog} onOpenChange={setShowClearDataDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="destructive" className="w-full">
+                        <Trash2 className="mr-2 h-4 w-4" /> Clear All Data
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Clear All Data</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to clear all your data? This action will permanently delete all your transactions, accounts, categories, budget items and settings.
+                          This action cannot be undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter className="gap-2 sm:gap-0">
+                        <DialogClose asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button variant="destructive" onClick={handleClearAllData}>
+                          Yes, Clear All Data
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                   <p className="text-sm text-muted-foreground">
                     This action will permanently delete all your data and cannot be undone.
                     Make sure to export your data before proceeding.
