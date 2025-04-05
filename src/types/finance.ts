@@ -1,3 +1,4 @@
+
 // Types for finance data
 export type Currency = "USD" | "EUR" | "GBP" | "ZAR" | "AUD";
 
@@ -137,6 +138,7 @@ export interface FinanceContextType {
   addBudgetItem: (budgetItem: Omit<BudgetItem, "id">) => void;
   updateBudgetItem: (id: string, budgetItem: Partial<BudgetItem>) => void;
   deleteBudgetItem: (id: string) => void;
+  clearBudgetItems: () => void;
   
   addSubAccount: (subAccount: Omit<SubAccount, "id">) => void;
   updateSubAccount: (id: string, subAccount: Partial<SubAccount>) => void;
@@ -173,3 +175,4 @@ export interface FinanceContextType {
   
   formatCurrency: (amount: number) => string;
 }
+
