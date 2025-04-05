@@ -12,9 +12,14 @@ export const useBudget = () => {
       const storedBudgetItems = localStorage.getItem("budgetItems");
       if (storedBudgetItems) {
         setBudgetItems(JSON.parse(storedBudgetItems));
+      } else {
+        // Ensure we start with empty array if nothing in localStorage
+        setBudgetItems([]);
       }
     } catch (error) {
       console.error("Error loading budget items from localStorage:", error);
+      // On error, reset to empty array
+      setBudgetItems([]);
     }
   }, []);
 
@@ -41,10 +46,16 @@ export const useBudget = () => {
     setBudgetItems(budgetItems.filter(item => item.id !== id));
   };
 
+  // Clear all budget items
+  const clearBudgetItems = () => {
+    setBudgetItems([]);
+  };
+
   return {
     budgetItems,
     addBudgetItem,
     updateBudgetItem,
-    deleteBudgetItem
+    deleteBudgetItem,
+    clearBudgetItems
   };
 };

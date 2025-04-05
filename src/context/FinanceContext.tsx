@@ -21,7 +21,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { accounts, addAccount, updateAccount, deleteAccount } = useAccounts();
   const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
   const { categories, addCategory, updateCategory, deleteCategory } = useCategories();
-  const { budgetItems, addBudgetItem, updateBudgetItem, deleteBudgetItem } = useBudget();
+  const { budgetItems, addBudgetItem, updateBudgetItem, deleteBudgetItem, clearBudgetItems } = useBudget();
   const { 
     subAccounts, 
     subAccountTransactions, 
@@ -76,6 +76,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addBudgetItem,
     updateBudgetItem,
     deleteBudgetItem,
+    clearBudgetItems,
     
     addSubAccount,
     updateSubAccount,

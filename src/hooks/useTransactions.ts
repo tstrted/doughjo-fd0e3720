@@ -12,9 +12,14 @@ export const useTransactions = () => {
       const storedTransactions = localStorage.getItem("transactions");
       if (storedTransactions) {
         setTransactions(JSON.parse(storedTransactions));
+      } else {
+        // Ensure we start with empty array if nothing in localStorage
+        setTransactions([]);
       }
     } catch (error) {
       console.error("Error loading transactions from localStorage:", error);
+      // On error, reset to empty array
+      setTransactions([]);
     }
   }, []);
 
@@ -46,10 +51,16 @@ export const useTransactions = () => {
     setTransactions(transactions.filter(trans => trans.id !== id));
   };
 
+  // Add clear method
+  const clearTransactions = () => {
+    setTransactions([]);
+  };
+
   return {
     transactions,
     addTransaction,
     updateTransaction,
-    deleteTransaction
+    deleteTransaction,
+    clearTransactions
   };
 };

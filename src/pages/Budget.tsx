@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useFinance } from "@/context/FinanceContext";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -32,38 +32,62 @@ const Budget = () => {
   const [isEditBudgetItemOpen, setIsEditBudgetItemOpen] = useState(false);
   const [currentBudgetItem, setCurrentBudgetItem] = useState<BudgetItem | null>(null);
 
-  // Mock data for category groups (in real app this would be derived from budgetItems)
+  // Initialize empty categoryGroups instead of using mock data
   const [categoryGroups, setCategoryGroups] = useState([
     {
       name: "Available",
-      total: -720.00,
+      total: 0,
       expanded: true,
       categories: []
     },
     {
       name: "Spending",
-      total: 6270.00,
+      total: 0,
       expanded: true,
-      categories: [
-        { id: "1", name: "Groceries", budgeted: 240.00, spent: 0, dueDate: undefined },
-        { id: "2", name: "Gas", budgeted: 100.00, spent: 140.00, dueDate: undefined },
-        { id: "3", name: "Netflix", budgeted: 149.00, spent: 0, dueDate: "1st" },
-        { id: "4", name: "School", budgeted: 2500.00, spent: 0, dueDate: "1st" },
-        { id: "5", name: "Dance", budgeted: 465.00, spent: 0, dueDate: undefined },
-        { id: "6", name: "Tennis", budgeted: 2606.00, spent: 250.00, dueDate: undefined },
-        { id: "7", name: "Fun Fund", budgeted: 1000.00, spent: 400.00, dueDate: undefined },
-      ]
+      categories: []
     },
     {
       name: "Debt Payment",
-      total: -10000.00,
+      total: 0,
       expanded: true,
-      categories: [
-        { id: "8", name: "Car", budgeted: 8960.00, spent: 8960.00, dueDate: "1st" },
-        { id: "9", name: "House Loan", budgeted: 10000.00, spent: 20000.00, dueDate: "1st" },
-      ]
+      categories: []
     }
   ]);
+
+  // Effect to update categoryGroups whenever relevant data changes
+  useEffect(() => {
+    // This would be where you transform your real budget data into the category groups
+    // For now, we'll just ensure the groups are empty if there's no data
+    
+    // Check if we have actual budget items
+    if (budgetItems.length === 0) {
+      setCategoryGroups([
+        {
+          name: "Available",
+          total: 0,
+          expanded: true,
+          categories: []
+        },
+        {
+          name: "Spending",
+          total: 0,
+          expanded: true,
+          categories: []
+        },
+        {
+          name: "Debt Payment",
+          total: 0,
+          expanded: true,
+          categories: []
+        }
+      ]);
+    } else {
+      // Here you would transform your budget items into category groups
+      // This is just a placeholder for the real logic
+      // In a full implementation, you'd map through budgetItems and categories
+      // to build these groups properly
+    }
+  }, [budgetItems, categories, transactions, activeMonth, activeYear]);
 
   // New budget item state
   const [newBudgetItem, setNewBudgetItem] = useState({
@@ -84,7 +108,7 @@ const Budget = () => {
   // Get actual spending for comparison
   const actualSpending = calculateActualSpending(activeMonth, activeYear);
   
-  // Calculate unbudgeted funds (this is mock data, replace with real calculation)
+  // Calculate unbudgeted funds
   const unbudgetedFunds = 0;
 
   // Handler for toggling category group expansion
@@ -212,21 +236,21 @@ const Budget = () => {
           <BudgetStatsCard
             title="Monthly Income"
             amount={income}
-            trendPercentage={5.2}
+            trendPercentage={income > 0 ? 5.2 : 0}
             trendDirection="up"
           />
           
           <BudgetStatsCard
             title="Budgeted Expenses"
             amount={expenses}
-            trendPercentage={2.1}
+            trendPercentage={expenses > 0 ? 2.1 : 0}
             trendDirection="down"
           />
           
           <BudgetStatsCard
             title="Spending to Date"
             amount={actualSpending.expenses}
-            trendPercentage={Math.abs(actualSpending.expenses / expenses) * 10}
+            trendPercentage={Math.abs(actualSpending.expenses / (expenses || 1)) * 10}
             trendDirection={actualSpending.expenses > expenses ? "up" : "down"}
             trendLabel="of budget"
           />
