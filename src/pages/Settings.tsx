@@ -163,7 +163,15 @@ const SettingsPage = () => {
   // Clear all data
   const handleClearAllData = () => {
     try {
+      // Get all keys in localStorage
+      const allKeys = Object.keys(localStorage);
+      
       // Clear all items from localStorage
+      allKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Explicitly ensure all known keys are removed
       localStorage.removeItem("transactions");
       localStorage.removeItem("accounts");
       localStorage.removeItem("categories");
@@ -176,12 +184,12 @@ const SettingsPage = () => {
       setShowClearDataDialog(false);
       
       // Show success toast
-      toast.success("All data has been cleared successfully. Reload the page to see the changes.");
+      toast.success("All data has been cleared successfully. Reloading page...");
       
       // Reload the page to reinitialize all hooks with default values
       setTimeout(() => {
         window.location.reload();
-      }, 1500);
+      }, 1000);
     } catch (error) {
       console.error("Error clearing data:", error);
       toast.error("Failed to clear data");
